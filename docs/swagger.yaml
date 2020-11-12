@@ -1,0 +1,3264 @@
+basePath: /deployer
+definitions:
+  controller.Response:
+    properties:
+      Data:
+        type: object
+      OpCode:
+        type: integer
+      OpDesc:
+        type: string
+    type: object
+  core.Condition:
+    properties:
+      LastTransitionTime:
+        type: string
+      Status:
+        type: string
+      Type:
+        type: string
+    type: object
+  core.Metadata:
+    properties:
+      Annotations:
+        additionalProperties:
+          type: string
+        type: object
+      CreateTime:
+        type: string
+      Finalizers:
+        items:
+          type: string
+        type: array
+      Labels:
+        additionalProperties:
+          type: string
+        type: object
+      Name:
+        type: string
+      Namespace:
+        type: string
+      ResourceVersion:
+        type: integer
+      Uid:
+        type: string
+      UpdateTime:
+        type: string
+    type: object
+  core.Status:
+    properties:
+      Conditions:
+        items:
+          $ref: '#/definitions/core.Condition'
+        type: array
+      Phase:
+        type: string
+    type: object
+  v1.AnsibleInventory:
+    properties:
+      Value:
+        type: string
+      ValueFrom:
+        $ref: '#/definitions/v1.ValueFrom'
+        type: object
+    type: object
+  v1.App:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.AppSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.AppArgs:
+    properties:
+      Default:
+        type: object
+      Desc:
+        type: string
+      Enum:
+        items:
+          type: string
+        type: array
+      Format:
+        type: string
+      HostLimits:
+        $ref: '#/definitions/v1.HostLimits'
+        type: object
+      Modifiable:
+        type: boolean
+      Name:
+        type: string
+      Readonly:
+        type: boolean
+      Required:
+        type: boolean
+      ShortName:
+        type: string
+      Type:
+        type: string
+    type: object
+  v1.AppGlobal:
+    properties:
+      Args:
+        items:
+          $ref: '#/definitions/v1.AppArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+    type: object
+  v1.AppInstance:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.AppInstanceSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.AppInstanceArgs:
+    properties:
+      Name:
+        type: string
+      Value:
+        type: object
+    type: object
+  v1.AppInstanceGlobal:
+    properties:
+      Args:
+        items:
+          $ref: '#/definitions/v1.AppInstanceArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+    type: object
+  v1.AppInstanceModule:
+    properties:
+      AdditionalConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      AppVersion:
+        type: string
+      Args:
+        items:
+          $ref: '#/definitions/v1.AppInstanceArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      HostRefs:
+        items:
+          type: string
+        type: array
+      Name:
+        type: string
+      Notes:
+        type: string
+    type: object
+  v1.AppInstanceModuleRef:
+    properties:
+      Module:
+        type: string
+      Name:
+        type: string
+      Namespace:
+        type: string
+      Replica:
+        type: integer
+    type: object
+  v1.AppInstanceRef:
+    properties:
+      Name:
+        type: string
+      Namespace:
+        type: string
+    type: object
+  v1.AppInstanceSpec:
+    properties:
+      Action:
+        type: string
+      AppRef:
+        $ref: '#/definitions/v1.AppRef'
+        type: object
+      Category:
+        type: string
+      Global:
+        $ref: '#/definitions/v1.AppInstanceGlobal'
+        type: object
+      K8sRef:
+        type: string
+      LivenessProbe:
+        $ref: '#/definitions/v1.LivenessProbe'
+        type: object
+      Modules:
+        items:
+          $ref: '#/definitions/v1.AppInstanceModule'
+        type: array
+    type: object
+  v1.AppModule:
+    properties:
+      AdditionalConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      Args:
+        items:
+          $ref: '#/definitions/v1.AppArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      Desc:
+        type: string
+      EnableAdditionalConfigs:
+        type: boolean
+      EnableLogging:
+        type: boolean
+      EnablePurgeData:
+        type: boolean
+      ExtraVars:
+        additionalProperties: true
+        type: object
+      HostLimits:
+        $ref: '#/definitions/v1.HostLimits'
+        type: object
+      IncludeRoles:
+        items:
+          type: string
+        type: array
+      Name:
+        type: string
+      Notes:
+        type: string
+      Replication:
+        type: boolean
+      Required:
+        type: boolean
+      Resources:
+        $ref: '#/definitions/v1.Resources'
+        type: object
+      SkipUpgrade:
+        type: boolean
+    type: object
+  v1.AppRef:
+    properties:
+      Name:
+        type: string
+      Version:
+        type: string
+    type: object
+  v1.AppSpec:
+    properties:
+      Category:
+        type: string
+      Versions:
+        items:
+          $ref: '#/definitions/v1.AppVersion'
+        type: array
+    type: object
+  v1.AppVersion:
+    properties:
+      DashboardId:
+        type: string
+      Desc:
+        type: string
+      Enabled:
+        type: boolean
+      Global:
+        $ref: '#/definitions/v1.AppGlobal'
+        type: object
+      GpuRequired:
+        type: boolean
+      Increment:
+        type: boolean
+      LivenessProbe:
+        $ref: '#/definitions/v1.LivenessProbe'
+        type: object
+      Modules:
+        items:
+          $ref: '#/definitions/v1.AppModule'
+        type: array
+      PkgRef:
+        type: string
+      Platform:
+        type: string
+      ShortName:
+        type: string
+      SupportActions:
+        items:
+          type: string
+        type: array
+      SupportGpuModels:
+        items:
+          type: string
+        type: array
+      SupportMediaTypes:
+        items:
+          type: string
+        type: array
+      Version:
+        type: string
+    type: object
+  v1.Audit:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.AuditSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.AuditSpec:
+    properties:
+      Action:
+        type: string
+      Msg:
+        type: string
+      ReqBody:
+        type: string
+      ResourceRef:
+        $ref: '#/definitions/v1.ResourceRef'
+        type: object
+      RespBody:
+        type: string
+      SourceIP:
+        type: string
+      StatusCode:
+        type: integer
+    type: object
+  v1.CPU:
+    properties:
+      Cores:
+        type: integer
+      Model:
+        type: string
+    type: object
+  v1.ConfigMap:
+    properties:
+      ApiVersion:
+        type: string
+      Data:
+        additionalProperties:
+          type: string
+        type: object
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.ConfigMapRef:
+    properties:
+      Name:
+        type: string
+      Namespace:
+        type: string
+    type: object
+  v1.Disk:
+    properties:
+      Size:
+        type: integer
+    type: object
+  v1.Event:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.EventSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.EventSpec:
+    properties:
+      Action:
+        type: string
+      JobRef:
+        type: string
+      Msg:
+        type: string
+      ResourceRef:
+        $ref: '#/definitions/v1.ResourceRef'
+        type: object
+    type: object
+  v1.GPU:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.GPUSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.GPUInfo:
+    properties:
+      ID:
+        type: integer
+      Memory:
+        type: integer
+      Model:
+        type: string
+      Type:
+        type: string
+      UUID:
+        type: string
+    type: object
+  v1.GPUSpec:
+    properties:
+      AppInstanceModuleRef:
+        $ref: '#/definitions/v1.AppInstanceModuleRef'
+        type: object
+      HostRef:
+        type: string
+      Info:
+        $ref: '#/definitions/v1.GPUInfo'
+        type: object
+    type: object
+  v1.GroupVars:
+    properties:
+      ValueFrom:
+        $ref: '#/definitions/v1.ValueFrom'
+        type: object
+    type: object
+  v1.Host:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.HostSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.HostInfo:
+    properties:
+      CPU:
+        $ref: '#/definitions/v1.CPU'
+        type: object
+      Disk:
+        $ref: '#/definitions/v1.Disk'
+        type: object
+      GPUs:
+        items:
+          $ref: '#/definitions/v1.GPUInfo'
+        type: array
+      Memory:
+        $ref: '#/definitions/v1.Memory'
+        type: object
+      OS:
+        $ref: '#/definitions/v1.OS'
+        type: object
+    type: object
+  v1.HostLimits:
+    properties:
+      Max:
+        type: integer
+      Min:
+        type: integer
+    type: object
+  v1.HostPlugin:
+    properties:
+      AppInstanceRef:
+        $ref: '#/definitions/v1.AppInstanceRef'
+        type: object
+      AppRef:
+        $ref: '#/definitions/v1.AppRef'
+        type: object
+    type: object
+  v1.HostSSH:
+    properties:
+      Host:
+        type: string
+      Password:
+        type: string
+      Port:
+        type: integer
+      User:
+        type: string
+    type: object
+  v1.HostSpec:
+    properties:
+      Info:
+        $ref: '#/definitions/v1.HostInfo'
+        type: object
+      Plugins:
+        items:
+          $ref: '#/definitions/v1.HostPlugin'
+        type: array
+      SSH:
+        $ref: '#/definitions/v1.HostSSH'
+        type: object
+      Sdks:
+        items:
+          $ref: '#/definitions/v1.SdkPlugin'
+        type: array
+    type: object
+  v1.Job:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.JobSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.JobAnsible:
+    properties:
+      Bin:
+        type: string
+      Configs:
+        items:
+          $ref: '#/definitions/v1.JobConfig'
+        type: array
+      Envs:
+        items:
+          type: string
+        type: array
+      GroupVars:
+        $ref: '#/definitions/v1.GroupVars'
+        type: object
+      Inventories:
+        items:
+          $ref: '#/definitions/v1.AnsibleInventory'
+        type: array
+      Playbook:
+        type: string
+      RecklessMode:
+        type: boolean
+      Tags:
+        items:
+          type: string
+        type: array
+    type: object
+  v1.JobConfig:
+    properties:
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      Path:
+        type: string
+    type: object
+  v1.JobExec:
+    properties:
+      Ansible:
+        $ref: '#/definitions/v1.JobAnsible'
+        type: object
+      Type:
+        type: string
+    type: object
+  v1.JobSpec:
+    properties:
+      Exec:
+        $ref: '#/definitions/v1.JobExec'
+        type: object
+      FailureThreshold:
+        type: integer
+      TimeoutSeconds:
+        type: string
+    type: object
+  v1.K8sConfig:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.K8sYaml'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.K8sHostRef:
+    properties:
+      Label:
+        additionalProperties:
+          type: string
+        type: object
+      ValueFrom:
+        $ref: '#/definitions/v1.ValueFrom'
+        type: object
+    type: object
+  v1.K8sYaml:
+    properties:
+      Action:
+        type: string
+      Chrony:
+        type: string
+      Etcd:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+      ExLb:
+        type: string
+      GPU:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+      Harbor:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+      K8s-master:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+      K8s-worker:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+      K8s-worker-new:
+        properties:
+          Hosts:
+            items:
+              $ref: '#/definitions/v1.K8sHostRef'
+            type: array
+        type: object
+    type: object
+  v1.LivenessProbe:
+    properties:
+      InitialDelaySeconds:
+        type: integer
+      PeriodSeconds:
+        type: integer
+      TimeoutSeconds:
+        type: integer
+    type: object
+  v1.Memory:
+    properties:
+      Model:
+        type: string
+      Size:
+        type: integer
+    type: object
+  v1.OS:
+    properties:
+      Kernel:
+        type: string
+      Release:
+        type: string
+    type: object
+  v1.Pkg:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v1.PkgSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.PkgSpec:
+    properties:
+      Author:
+        type: string
+      Desc:
+        type: string
+      Images:
+        items:
+          type: string
+        type: array
+      Module:
+        type: string
+      Platform:
+        type: string
+      Provision:
+        type: string
+      Synced:
+        type: boolean
+      Version:
+        type: string
+    type: object
+  v1.Project:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v1.ResourceRef:
+    properties:
+      Kind:
+        type: string
+      Name:
+        type: string
+      Namespace:
+        type: string
+    type: object
+  v1.Resources:
+    properties:
+      AlgorithmPlugin:
+        type: boolean
+      SupportAlgorithmPluginsRegexp:
+        type: string
+    type: object
+  v1.SdkPlugin:
+    properties:
+      AppInstanceRef:
+        $ref: '#/definitions/v1.AppInstanceRef'
+        type: object
+      AppRef:
+        $ref: '#/definitions/v1.AppRef'
+        type: object
+    type: object
+  v1.ValueFrom:
+    properties:
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      HostRef:
+        type: string
+    type: object
+  v2.AnsibleConfig:
+    properties:
+      PathPrefix:
+        type: string
+      ValueFrom:
+        $ref: '#/definitions/v2.ValueFrom'
+        type: object
+    type: object
+  v2.AnsibleGroupVars:
+    properties:
+      Value:
+        type: string
+      ValueFrom:
+        $ref: '#/definitions/v2.ValueFrom'
+        type: object
+    type: object
+  v2.AnsibleInventory:
+    properties:
+      Value:
+        type: string
+      ValueFrom:
+        $ref: '#/definitions/v2.ValueFrom'
+        type: object
+    type: object
+  v2.AnsiblePlaybook:
+    properties:
+      Value:
+        type: string
+      ValueFrom:
+        $ref: '#/definitions/v2.ValueFrom'
+        type: object
+    type: object
+  v2.AppInstance:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v2.AppInstanceSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v2.AppInstanceArgs:
+    properties:
+      Name:
+        type: string
+      Value:
+        type: object
+    type: object
+  v2.AppInstanceGlobal:
+    properties:
+      Args:
+        items:
+          $ref: '#/definitions/v2.AppInstanceArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v2.ConfigMapRef'
+        type: object
+    type: object
+  v2.AppInstanceModule:
+    properties:
+      AppVersion:
+        type: string
+      Name:
+        type: string
+      Replicas:
+        items:
+          $ref: '#/definitions/v2.AppInstanceModuleReplica'
+        type: array
+    type: object
+  v2.AppInstanceModuleReplica:
+    properties:
+      AdditionalConfigMapRef:
+        $ref: '#/definitions/v2.ConfigMapRef'
+        type: object
+      Args:
+        items:
+          $ref: '#/definitions/v2.AppInstanceArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v2.ConfigMapRef'
+        type: object
+      HostRefs:
+        items:
+          type: string
+        type: array
+      Notes:
+        type: string
+    type: object
+  v2.AppInstanceSpec:
+    properties:
+      Action:
+        type: string
+      AppRef:
+        $ref: '#/definitions/v2.AppRef'
+        type: object
+      Category:
+        type: string
+      Global:
+        $ref: '#/definitions/v2.AppInstanceGlobal'
+        type: object
+      K8sRef:
+        type: string
+      LivenessProbe:
+        $ref: '#/definitions/v2.LivenessProbe'
+        type: object
+      Modules:
+        items:
+          $ref: '#/definitions/v2.AppInstanceModule'
+        type: array
+    type: object
+  v2.AppRef:
+    properties:
+      Name:
+        type: string
+      Version:
+        type: string
+    type: object
+  v2.ConfigMapRef:
+    properties:
+      Key:
+        type: string
+      Name:
+        type: string
+      Namespace:
+        type: string
+    type: object
+  v2.Job:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v2.JobSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v2.JobAnsible:
+    properties:
+      Bin:
+        type: string
+      Plays:
+        items:
+          $ref: '#/definitions/v2.JobAnsiblePlay'
+        type: array
+      RecklessMode:
+        type: boolean
+    type: object
+  v2.JobAnsiblePlay:
+    properties:
+      Configs:
+        items:
+          $ref: '#/definitions/v2.AnsibleConfig'
+        type: array
+      Envs:
+        items:
+          type: string
+        type: array
+      GroupVars:
+        $ref: '#/definitions/v2.AnsibleGroupVars'
+        type: object
+      Inventory:
+        $ref: '#/definitions/v2.AnsibleInventory'
+        type: object
+      Name:
+        type: string
+      Playbook:
+        $ref: '#/definitions/v2.AnsiblePlaybook'
+        type: object
+      Tags:
+        items:
+          type: string
+        type: array
+    type: object
+  v2.JobExec:
+    properties:
+      Ansible:
+        $ref: '#/definitions/v2.JobAnsible'
+        type: object
+      Type:
+        type: string
+    type: object
+  v2.JobSpec:
+    properties:
+      Exec:
+        $ref: '#/definitions/v2.JobExec'
+        type: object
+      FailureThreshold:
+        type: integer
+      TimeoutSeconds:
+        type: string
+    type: object
+  v2.LivenessProbe:
+    properties:
+      InitialDelaySeconds:
+        type: integer
+      PeriodSeconds:
+        type: integer
+      TimeoutSeconds:
+        type: integer
+    type: object
+  v2.ValueFrom:
+    properties:
+      ConfigMapRef:
+        $ref: '#/definitions/v2.ConfigMapRef'
+        type: object
+    type: object
+info:
+  contact: {}
+  description: An example of gin
+  license:
+    name: MIT
+    url: https://github.com/wujie1993/waves/blob/master/LICENSE
+  termsOfService: https://github.com/wujie1993/waves
+  title: Golang Gin API
+  version: "1.0"
+paths:
+  /api/v1/audits:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 起始时间
+        in: query
+        name: beginTime
+        type: integer
+      - description: 结束时间
+        in: query
+        name: endTime
+        type: integer
+      - description: 资源类别
+        enum:
+        - app
+        - appInstance
+        - audit
+        - event
+        - host
+        - job
+        - configMap
+        - k8sconfig
+        in: query
+        name: resourceKind
+        type: string
+      - description: 资源命名空间
+        in: query
+        name: resourceNamespace
+        type: string
+      - description: 资源标识名称
+        in: query
+        name: resourceName
+        type: string
+      - description: 来源地址
+        in: query
+        name: sourceIP
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Audit'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有审计
+      tags:
+      - Audit
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 审计信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Audit'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Audit'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个审计
+      tags:
+      - Audit
+  /api/v1/audits/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 审计名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Audit'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个审计
+      tags:
+      - Audit
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 审计名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Audit'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个审计
+      tags:
+      - Audit
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 审计名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 审计信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Audit'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Audit'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个审计
+      tags:
+      - Audit
+  /api/v1/events:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 起始时间
+        in: query
+        name: beginTime
+        type: integer
+      - description: 结束时间
+        in: query
+        name: endTime
+        type: integer
+      - description: 资源类别
+        enum:
+        - appInstance
+        - host
+        - k8sconfig
+        in: query
+        name: resourceKind
+        type: string
+      - description: 资源命名空间
+        in: query
+        name: resourceNamespace
+        type: string
+      - description: 资源标识名称
+        in: query
+        name: resourceName
+        type: string
+      - description: 行为
+        enum:
+        - Install
+        - Configure
+        - Uninstall
+        - HealthCheck
+        - Label
+        - Connect
+        - Initial
+        in: query
+        name: action
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Event'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有事件
+      tags:
+      - Event
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 事件信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Event'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Event'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个事件
+      tags:
+      - Event
+  /api/v1/events/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 事件名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Event'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个事件
+      tags:
+      - Event
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 事件名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Event'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个事件
+      tags:
+      - Event
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 事件名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 事件信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Event'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Event'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个事件
+      tags:
+      - Event
+  /api/v1/gpus:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 显卡分类
+        enum:
+        - thirdParty
+        - customize
+        - hostPlugin
+        - algorithmPlugin
+        - algorithmInstance
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.GPU'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有显卡
+      tags:
+      - GPU
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 显卡信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.GPU'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.GPU'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个显卡
+      tags:
+      - GPU
+  /api/v1/gpus/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 显卡名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.GPU'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个显卡
+      tags:
+      - GPU
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 显卡名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.GPU'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个显卡
+      tags:
+      - GPU
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 显卡名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 显卡信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.GPU'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.GPU'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个显卡
+      tags:
+      - GPU
+  /api/v1/hosts:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Host'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有主机
+      tags:
+      - Host
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Host'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个主机
+      tags:
+      - Host
+  /api/v1/hosts/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个主机
+      tags:
+      - Host
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个主机
+      tags:
+      - Host
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Host'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个主机
+      tags:
+      - Host
+  /api/v1/jobs:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Job'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有任务
+      tags:
+      - Job
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Job'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个任务
+      tags:
+      - Job
+  /api/v1/jobs/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个任务
+      tags:
+      - Job
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个任务
+      tags:
+      - Job
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Job'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个任务
+      tags:
+      - Job
+  /api/v1/jobs/{name}/log:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 开启侦听模式
+        in: query
+        name: watch
+        type: boolean
+      - description: 下载日志文件
+        in: query
+        name: download
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个任务的运行日志
+      tags:
+      - Job
+  /api/v1/namespaces/{namespace}/appinstances:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用分类
+        enum:
+        - thirdParty
+        - customize
+        - hostPlugin
+        - algorithmPlugin
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.AppInstance'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有应用实例
+      tags:
+      - AppInstance
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.AppInstance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个应用实例
+      tags:
+      - AppInstance
+  /api/v1/namespaces/{namespace}/appinstances/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个应用实例
+      tags:
+      - AppInstance
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个应用实例
+      tags:
+      - AppInstance
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 应用实例信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.AppInstance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个应用实例
+      tags:
+      - AppInstance
+  /api/v1/namespaces/{namespace}/apps:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用分类
+        enum:
+        - thirdParty
+        - customize
+        - hostPlugin
+        - algorithmPlugin
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.App'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有应用
+      tags:
+      - App
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.App'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.App'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个应用
+      tags:
+      - App
+  /api/v1/namespaces/{namespace}/apps/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.App'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个应用
+      tags:
+      - App
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.App'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个应用
+      tags:
+      - App
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 应用信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.App'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.App'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个应用
+      tags:
+      - App
+  /api/v1/namespaces/{namespace}/configmaps:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.ConfigMap'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有配置字典
+      tags:
+      - ConfigMap
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 配置字典信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ConfigMap'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.ConfigMap'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个配置字典
+      tags:
+      - ConfigMap
+  /api/v1/namespaces/{namespace}/configmaps/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 配置字典名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.ConfigMap'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个配置字典
+      tags:
+      - ConfigMap
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 配置字典名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.ConfigMap'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个配置字典
+      tags:
+      - ConfigMap
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 配置字典名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 配置字典信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ConfigMap'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.ConfigMap'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个配置字典
+      tags:
+      - ConfigMap
+  /api/v1/namespaces/{namespace}/k8sconfig:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.K8sConfig'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有k8s集群
+      tags:
+      - K8sConfig
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: k8s集群信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.K8sConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.K8sConfig'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个k8s集群配置
+      tags:
+      - K8sConfig
+  /api/v1/namespaces/{namespace}/k8sconfig/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.K8sConfig'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个k8s集群配置
+      tags:
+      - K8sConfig
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.K8sConfig'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个k8s集群配置
+      tags:
+      - K8sConfig
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: k8s集群信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.K8sConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.K8sConfig'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个k8s集群配置
+      tags:
+      - K8sConfig
+  /api/v1/pkgs:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Pkg'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有部署包
+      tags:
+      - Pkg
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 部署包信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Pkg'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Pkg'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个部署包
+      tags:
+      - Pkg
+  /api/v1/pkgs/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 部署包名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Pkg'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个部署包
+      tags:
+      - Pkg
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 部署包名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Pkg'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个部署包
+      tags:
+      - Pkg
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 部署包名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 部署包信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Pkg'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Pkg'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个部署包
+      tags:
+      - Pkg
+  /api/v1/project:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Project'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有项目空间
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目空间信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Project'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Project'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个项目空间
+      tags:
+      - Project
+  /api/v1/project/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Project'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个项目空间
+      tags:
+      - Project
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Project'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个项目空间
+      tags:
+      - Project
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 项目空间信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Project'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Project'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个项目空间
+      tags:
+      - Project
+  /api/v2/jobs:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v2.Job'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有任务
+      tags:
+      - Job
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.Job'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个任务
+      tags:
+      - Job
+  /api/v2/jobs/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个任务
+      tags:
+      - Job
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个任务
+      tags:
+      - Job
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.Job'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个任务
+      tags:
+      - Job
+  /api/v2/jobs/{name}/log:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 开启侦听模式
+        in: query
+        name: watch
+        type: boolean
+      - description: 下载日志文件
+        in: query
+        name: download
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Job'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个任务的运行日志
+      tags:
+      - Job
+  /api/v2/namespaces/{namespace}/appinstances:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用分类
+        enum:
+        - thirdParty
+        - customize
+        - hostPlugin
+        - algorithmPlugin
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v2.AppInstance'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有应用实例
+      tags:
+      - AppInstance
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.AppInstance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个应用实例
+      tags:
+      - AppInstance
+  /api/v2/namespaces/{namespace}/appinstances/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个应用实例
+      tags:
+      - AppInstance
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个应用实例
+      tags:
+      - AppInstance
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 应用实例信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.AppInstance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个应用实例
+      tags:
+      - AppInstance
+swagger: "2.0"
+tags:
+- description: 应用
+  name: App
+- description: 应用实例
+  name: AppInstance
+- description: 主机
+  name: Host
+- description: 任务
+  name: Job
+- description: 配置字典
+  name: ConfigMap
+- description: K8s集群
+  name: K8sConfig
+- description: 部署包
+  name: Pkg
+- description: 审计
+  name: Audit
+- description: 事件
+  name: Event
