@@ -58,12 +58,6 @@ func (r JobRegistry) WatchLog(ctx context.Context, jobsDir string, jobName strin
 	return util.Tailf(ctx, jobPath)
 }
 
-func jobPreCreate(obj core.ApiObject) error {
-	job := obj.(*Job)
-	job.Metadata.Finalizers = []string{core.FinalizerCleanRefConfigMap, core.FinalizerCleanJobWorkDir}
-	return nil
-}
-
 func NewJob() *Job {
 	job := new(Job)
 	job.Init(ApiVersion, core.KindJob)
@@ -76,6 +70,9 @@ func NewJobRegistry() JobRegistry {
 	r := JobRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindJob), false),
 	}
-	r.SetPreCreateHook(jobPreCreate)
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefConfigMap,
+		core.FinalizerCleanJobWorkDir,
+	})
 	return r
 }

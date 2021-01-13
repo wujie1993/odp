@@ -60,7 +60,16 @@ func (o BaseObj) GetMetadata() Metadata {
 }
 
 func (o *BaseObj) SetMetadata(m Metadata) {
+	o.Metadata = Metadata{}
 	DeepCopy(&m, &o.Metadata)
+}
+
+func (o *BaseObj) SetNamespace(namespace string) {
+	o.Metadata.Namespace = namespace
+}
+
+func (o *BaseObj) SetName(name string) {
+	o.Metadata.Name = name
 }
 
 func (o *BaseObj) SetCreateTime(time time.Time) {
@@ -76,6 +85,7 @@ func (o *BaseObj) GetStatus() Status {
 }
 
 func (o *BaseObj) SetStatus(status Status) {
+	o.Status = Status{}
 	DeepCopy(&status, &o.Status)
 }
 

@@ -14,6 +14,9 @@ type AppRef struct {
 type ConfigMapRef struct {
 	Namespace string
 	Name      string
+	Key       string
+	Hash      string
+	Revision  int
 }
 
 type LivenessProbe struct {
@@ -49,10 +52,23 @@ type AppInstanceModule struct {
 }
 
 type AppInstanceModuleReplica struct {
-	Args         []AppInstanceArgs
-	HostRefs     []string
-	Notes        string
+	Args              []AppInstanceArgs
+	HostRefs          []string
+	HostAliases       []AppInstanceHostAliases
+	Notes             string
+	ConfigMapRef      ConfigMapRef
+	AdditionalConfigs AdditionalConfigs
+}
+
+type AdditionalConfigs struct {
+	Enabled      bool
 	ConfigMapRef ConfigMapRef
+	Args         []AppInstanceArgs
+}
+
+type AppInstanceHostAliases struct {
+	Hostname string
+	IP       string
 }
 
 type AppInstanceArgs struct {
@@ -114,4 +130,67 @@ type AnsibleConfig struct {
 type AnsibleInventory struct {
 	Value     string
 	ValueFrom ValueFrom
+}
+
+type Host struct {
+	core.BaseApiObj `json:",inline" yaml:",inline"`
+	Spec            HostSpec
+	Info            HostInfo
+}
+
+type HostSpec struct {
+	SSH HostSSH
+}
+
+type HostSSH struct {
+	Host     string
+	User     string
+	Password string
+	Port     uint16
+}
+
+type HostInfo struct {
+	OS      OS
+	CPU     CPU
+	Memory  Memory
+	Disk    Disk
+	GPUs    []GPUInfo
+	Plugins []HostPlugin
+}
+
+type OS struct {
+	Release string
+	Kernel  string
+}
+
+type CPU struct {
+	Cores int
+	Model string
+}
+
+type Memory struct {
+	Size  int
+	Model string
+}
+
+type Disk struct {
+	Size int
+}
+
+type AppInstanceRef struct {
+	Namespace string
+	Name      string
+}
+
+type GPUInfo struct {
+	ID     int
+	Model  string
+	UUID   string
+	Memory int
+	Type   string
+}
+
+type HostPlugin struct {
+	AppInstanceRef AppInstanceRef
+	AppRef         AppRef
 }

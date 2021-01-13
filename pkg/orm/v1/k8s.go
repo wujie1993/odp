@@ -58,6 +58,7 @@ func (obj K8sConfig) SpecHash() string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
+// +namespaced=true
 type K8sConfigRegistry struct {
 	registry.Registry
 }
@@ -87,12 +88,6 @@ func (r K8sConfigRegistry) GetFirstMasterHost(name string) (*Host, error) {
 	return hostObj.(*Host), nil
 }
 
-func k8sPreCreate(obj core.ApiObject) error {
-	k8s := obj.(*K8sConfig)
-	k8s.Metadata.Finalizers = []string{core.FinalizerCleanRefEvent}
-	return nil
-}
-
 func NewK8sConfig() *K8sConfig {
 	k8sConfig := new(K8sConfig)
 	k8sConfig.Init(ApiVersion, core.KindK8sConfig)
@@ -103,6 +98,8 @@ func NewK8sConfigRegistry() K8sConfigRegistry {
 	r := K8sConfigRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindK8sConfig), true),
 	}
-	r.SetPreCreateHook(k8sPreCreate)
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefEvent,
+	})
 	return r
 }

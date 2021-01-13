@@ -66,26 +66,30 @@ type SdkPlugin struct {
 }
 
 func (obj Host) SpecEncode() ([]byte, error) {
-	return json.Marshal(&obj.Spec)
+	return json.Marshal(&obj.Spec.SSH)
 }
 
 func (obj *Host) SpecDecode(data []byte) error {
-	return json.Unmarshal(data, &obj.Spec)
+	return json.Unmarshal(data, &obj.Spec.SSH)
 }
 
 func (obj Host) SpecHash() string {
-	data, _ := json.Marshal(&obj.Spec.SSH)
+	data, _ := json.Marshal(&obj.Spec)
 	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func (obj Host) LastAppliedConfiguration() *Host {
+	oldSpecStr, ok := obj.Metadata.Annotations[core.AnnotationLastAppliedConfiguration]
+	if !ok {
+		return nil
+	}
+	last := obj.DeepCopy()
+	last.SpecDecode([]byte(oldSpecStr))
+	return last
 }
 
 type HostRegistry struct {
 	registry.Registry
-}
-
-func hostPreCreate(obj core.ApiObject) error {
-	host := obj.(*Host)
-	host.Metadata.Finalizers = []string{core.FinalizerCleanRefGPU, core.FinalizerCleanRefEvent}
-	return nil
 }
 
 func NewHost() *Host {
@@ -100,6 +104,9 @@ func NewHostRegistry() HostRegistry {
 	r := HostRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
 	}
-	r.SetPreCreateHook(hostPreCreate)
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefGPU,
+		core.FinalizerCleanRefEvent,
+	})
 	return r
 }

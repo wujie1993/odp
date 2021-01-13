@@ -54,6 +54,18 @@ definitions:
       Phase:
         type: string
     type: object
+  v1.AdditionalConfigs:
+    properties:
+      Args:
+        items:
+          $ref: '#/definitions/v1.AppArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v1.ConfigMapRef'
+        type: object
+      Enabled:
+        type: boolean
+    type: object
   v1.AnsibleInventory:
     properties:
       Value:
@@ -115,6 +127,10 @@ definitions:
       ConfigMapRef:
         $ref: '#/definitions/v1.ConfigMapRef'
         type: object
+      HostAliases:
+        items:
+          type: string
+        type: array
     type: object
   v1.AppInstance:
     properties:
@@ -148,11 +164,22 @@ definitions:
       ConfigMapRef:
         $ref: '#/definitions/v1.ConfigMapRef'
         type: object
+      HostAliases:
+        items:
+          $ref: '#/definitions/v1.AppInstanceHostAliases'
+        type: array
+    type: object
+  v1.AppInstanceHostAliases:
+    properties:
+      Hostname:
+        type: string
+      IP:
+        type: string
     type: object
   v1.AppInstanceModule:
     properties:
-      AdditionalConfigMapRef:
-        $ref: '#/definitions/v1.ConfigMapRef'
+      AdditionalConfigs:
+        $ref: '#/definitions/v1.AdditionalConfigs'
         type: object
       AppVersion:
         type: string
@@ -163,6 +190,10 @@ definitions:
       ConfigMapRef:
         $ref: '#/definitions/v1.ConfigMapRef'
         type: object
+      HostAliases:
+        items:
+          $ref: '#/definitions/v1.AppInstanceHostAliases'
+        type: array
       HostRefs:
         items:
           type: string
@@ -214,8 +245,8 @@ definitions:
     type: object
   v1.AppModule:
     properties:
-      AdditionalConfigMapRef:
-        $ref: '#/definitions/v1.ConfigMapRef'
+      AdditionalConfigs:
+        $ref: '#/definitions/v1.AdditionalConfigs'
         type: object
       Args:
         items:
@@ -226,8 +257,6 @@ definitions:
         type: object
       Desc:
         type: string
-      EnableAdditionalConfigs:
-        type: boolean
       EnableLogging:
         type: boolean
       EnablePurgeData:
@@ -235,6 +264,10 @@ definitions:
       ExtraVars:
         additionalProperties: true
         type: object
+      HostAliases:
+        items:
+          type: string
+        type: array
       HostLimits:
         $ref: '#/definitions/v1.HostLimits'
         type: object
@@ -266,6 +299,8 @@ definitions:
   v1.AppSpec:
     properties:
       Category:
+        type: string
+      Platform:
         type: string
       Versions:
         items:
@@ -375,10 +410,14 @@ definitions:
     type: object
   v1.ConfigMapRef:
     properties:
+      Hash:
+        type: string
       Name:
         type: string
       Namespace:
         type: string
+      Revision:
+        type: integer
     type: object
   v1.Disk:
     properties:
@@ -701,6 +740,19 @@ definitions:
       Size:
         type: integer
     type: object
+  v1.Namespace:
+    properties:
+      ApiVersion:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
   v1.OS:
     properties:
       Kernel:
@@ -754,6 +806,10 @@ definitions:
       Metadata:
         $ref: '#/definitions/core.Metadata'
         type: object
+      ReferNamespaces:
+        items:
+          type: string
+        type: array
       Status:
         $ref: '#/definitions/core.Status'
         type: object
@@ -774,6 +830,26 @@ definitions:
       SupportAlgorithmPluginsRegexp:
         type: string
     type: object
+  v1.Revision:
+    properties:
+      ApiVersion:
+        type: string
+      Data:
+        type: string
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      ResourceRef:
+        $ref: '#/definitions/v1.ResourceRef'
+        type: object
+      Revision:
+        type: integer
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
   v1.SdkPlugin:
     properties:
       AppInstanceRef:
@@ -790,6 +866,18 @@ definitions:
         type: object
       HostRef:
         type: string
+    type: object
+  v2.AdditionalConfigs:
+    properties:
+      Args:
+        items:
+          $ref: '#/definitions/v2.AppInstanceArgs'
+        type: array
+      ConfigMapRef:
+        $ref: '#/definitions/v2.ConfigMapRef'
+        type: object
+      Enabled:
+        type: boolean
     type: object
   v2.AnsibleConfig:
     properties:
@@ -855,6 +943,17 @@ definitions:
       ConfigMapRef:
         $ref: '#/definitions/v2.ConfigMapRef'
         type: object
+      HostAliases:
+        items:
+          $ref: '#/definitions/v2.AppInstanceHostAliases'
+        type: array
+    type: object
+  v2.AppInstanceHostAliases:
+    properties:
+      Hostname:
+        type: string
+      IP:
+        type: string
     type: object
   v2.AppInstanceModule:
     properties:
@@ -869,8 +968,8 @@ definitions:
     type: object
   v2.AppInstanceModuleReplica:
     properties:
-      AdditionalConfigMapRef:
-        $ref: '#/definitions/v2.ConfigMapRef'
+      AdditionalConfigs:
+        $ref: '#/definitions/v2.AdditionalConfigs'
         type: object
       Args:
         items:
@@ -879,11 +978,22 @@ definitions:
       ConfigMapRef:
         $ref: '#/definitions/v2.ConfigMapRef'
         type: object
+      HostAliases:
+        items:
+          $ref: '#/definitions/v2.AppInstanceHostAliases'
+        type: array
       HostRefs:
         items:
           type: string
         type: array
       Notes:
+        type: string
+    type: object
+  v2.AppInstanceRef:
+    properties:
+      Name:
+        type: string
+      Namespace:
         type: string
     type: object
   v2.AppInstanceSpec:
@@ -915,14 +1025,111 @@ definitions:
       Version:
         type: string
     type: object
+  v2.CPU:
+    properties:
+      Cores:
+        type: integer
+      Model:
+        type: string
+    type: object
   v2.ConfigMapRef:
     properties:
+      Hash:
+        type: string
       Key:
         type: string
       Name:
         type: string
       Namespace:
         type: string
+      Revision:
+        type: integer
+    type: object
+  v2.Disk:
+    properties:
+      Size:
+        type: integer
+    type: object
+  v2.GPUInfo:
+    properties:
+      ID:
+        type: integer
+      Memory:
+        type: integer
+      Model:
+        type: string
+      Type:
+        type: string
+      UUID:
+        type: string
+    type: object
+  v2.Host:
+    properties:
+      ApiVersion:
+        type: string
+      Info:
+        $ref: '#/definitions/v2.HostInfo'
+        type: object
+      Kind:
+        type: string
+      Metadata:
+        $ref: '#/definitions/core.Metadata'
+        type: object
+      Spec:
+        $ref: '#/definitions/v2.HostSpec'
+        type: object
+      Status:
+        $ref: '#/definitions/core.Status'
+        type: object
+    type: object
+  v2.HostInfo:
+    properties:
+      CPU:
+        $ref: '#/definitions/v2.CPU'
+        type: object
+      Disk:
+        $ref: '#/definitions/v2.Disk'
+        type: object
+      GPUs:
+        items:
+          $ref: '#/definitions/v2.GPUInfo'
+        type: array
+      Memory:
+        $ref: '#/definitions/v2.Memory'
+        type: object
+      OS:
+        $ref: '#/definitions/v2.OS'
+        type: object
+      Plugins:
+        items:
+          $ref: '#/definitions/v2.HostPlugin'
+        type: array
+    type: object
+  v2.HostPlugin:
+    properties:
+      AppInstanceRef:
+        $ref: '#/definitions/v2.AppInstanceRef'
+        type: object
+      AppRef:
+        $ref: '#/definitions/v2.AppRef'
+        type: object
+    type: object
+  v2.HostSSH:
+    properties:
+      Host:
+        type: string
+      Password:
+        type: string
+      Port:
+        type: integer
+      User:
+        type: string
+    type: object
+  v2.HostSpec:
+    properties:
+      SSH:
+        $ref: '#/definitions/v2.HostSSH'
+        type: object
     type: object
   v2.Job:
     properties:
@@ -1003,6 +1210,20 @@ definitions:
         type: integer
       TimeoutSeconds:
         type: integer
+    type: object
+  v2.Memory:
+    properties:
+      Model:
+        type: string
+      Size:
+        type: integer
+    type: object
+  v2.OS:
+    properties:
+      Kernel:
+        type: string
+      Release:
+        type: string
     type: object
   v2.ValueFrom:
     properties:
@@ -1864,6 +2085,151 @@ paths:
       summary: 获取单个任务的运行日志
       tags:
       - Job
+  /api/v1/namespaces:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Namespace'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有命名空间
+      tags:
+      - Namespace
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 命名空间信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Namespace'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Namespace'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个命名空间
+      tags:
+      - Namespace
+  /api/v1/namespaces/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 命名空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Namespace'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个命名空间
+      tags:
+      - Namespace
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 命名空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Namespace'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个命名空间
+      tags:
+      - Namespace
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 命名空间名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 命名空间信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Namespace'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Namespace'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个命名空间
+      tags:
+      - Namespace
   /api/v1/namespaces/{namespace}/appinstances:
     get:
       consumes:
@@ -2875,6 +3241,344 @@ paths:
       summary: 更新单个项目空间
       tags:
       - Project
+  /api/v1/revisions:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v1.Revision'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有修订历史
+      tags:
+      - Revision
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 修订历史信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Revision'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Revision'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个修订历史
+      tags:
+      - Revision
+  /api/v1/revisions/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 修订历史名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Revision'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个修订历史
+      tags:
+      - Revision
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 修订历史名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Revision'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个修订历史
+      tags:
+      - Revision
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 修订历史名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 修订历史信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.Revision'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v1.Revision'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个修订历史
+      tags:
+      - Revision
+  /api/v1/topology:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 资源类别
+        enum:
+        - appInstance
+        - host
+        in: query
+        name: resourceKind
+        required: true
+        type: string
+      - default: default
+        description: 资源命名空间
+        in: query
+        name: resourceNamespace
+        required: true
+        type: string
+      - description: 资源名称
+        in: query
+        name: resourceName
+        type: string
+      - description: 导出格式
+        enum:
+        - mermaid
+        - csv
+        in: query
+        name: format
+        type: string
+      - description: 下载文件
+        in: query
+        name: download
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 导出拓扑结构
+      tags:
+      - Topology
+  /api/v2/hosts:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v2.Host'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取所有主机
+      tags:
+      - Host
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.Host'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 创建单个主机
+      tags:
+      - Host
+  /api/v2/hosts/{name}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个主机
+      tags:
+      - Host
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个主机
+      tags:
+      - Host
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 主机信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v2.Host'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.Host'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个主机
+      tags:
+      - Host
   /api/v2/jobs:
     get:
       consumes:
@@ -3240,6 +3944,161 @@ paths:
           schema:
             $ref: '#/definitions/controller.Response'
       summary: 更新单个应用实例
+      tags:
+      - AppInstance
+  /api/v2/namespaces/{namespace}/appinstances/{name}/revisions:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  items:
+                    $ref: '#/definitions/v2.AppInstance'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个应用实例的所有修订版本
+      tags:
+      - AppInstance
+  /api/v2/namespaces/{namespace}/appinstances/{name}/revisions/{revision}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 修订版本
+        in: path
+        name: revision
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 删除单个应用实例的指定修订版本
+      tags:
+      - AppInstance
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 修订版本
+        in: path
+        name: revision
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 获取单个应用实例的指定修订版本
+      tags:
+      - AppInstance
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: default
+        description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 应用实例名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 修订版本
+        in: path
+        name: revision
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/controller.Response'
+            - properties:
+                Data:
+                  $ref: '#/definitions/v2.AppInstance'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.Response'
+      summary: 更新单个应用实例到指定的修订版本
       tags:
       - AppInstance
 swagger: "2.0"

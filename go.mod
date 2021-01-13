@@ -9,6 +9,7 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/elazarl/go-bindata-assetfs v1.0.0
+	github.com/ghodss/yaml v1.0.0
 	github.com/gin-contrib/pprof v1.2.1
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-ini/ini v1.32.1-0.20180214101753-32e4be5f41bb
@@ -25,6 +26,7 @@ require (
 	github.com/hpcloud/tail v1.0.0
 	github.com/mikkeloscar/gin-swagger v0.0.0-20200225080640-6de7568fe6ec
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/prometheus/client_golang v1.5.1 // indirect
 	github.com/roylee0704/gron v0.0.0-20160621042432-e78485adab46
 	github.com/sirupsen/logrus v1.4.2

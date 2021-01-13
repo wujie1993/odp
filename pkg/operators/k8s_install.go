@@ -49,7 +49,7 @@ type K8sInstallOperator struct {
 }
 
 //安装k8s
-func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) {
+func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) error {
 	k8s := obj.(*v1.K8sConfig)
 	helper := c.helper
 	var params Params
@@ -63,7 +63,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			result, err := helper.V1.Host.Get(context.TODO(), "default", v.ValueFrom.HostRef)
 			if err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 			var host Label
 			host.Host = result.(*v1.Host).Spec.SSH.Host
@@ -86,7 +86,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 		master_result, err := helper.V1.Host.Get(context.TODO(), "default", k8s.Spec.K8SMaster.Hosts[0].ValueFrom.HostRef)
 		if err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 		name := []string{"etcd", "harbor", "k8s-master"}
 
@@ -111,7 +111,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			result, err := helper.V1.Host.Get(context.TODO(), "default", v.ValueFrom.HostRef)
 			if err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 			var host Label
 			host.Host = result.(*v1.Host).Spec.SSH.Host
@@ -134,7 +134,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 	inventoryTpl, err := template.New("inventory").Parse(ansible.K8s_INVENTORY_TPL)
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
 	var inventoryBuf bytes.Buffer
 	if err := inventoryTpl.Execute(&inventoryBuf, params); err != nil {
@@ -151,7 +151,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 
 		if err != nil {
 			log.Print(err)
-			return
+			return err
 		}
 		if err := install_template.Execute(&k8sinventoryBuf, nil); err != nil {
 			log.Error(err)
@@ -162,7 +162,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 		install_template, err := template.New("k8s_newworker.tpl").ParseFiles(filepath.Join(setting.AnsibleSetting.TplsDir, "k8s_newworker.tpl"))
 		if err != nil {
 			log.Print(err)
-			return
+			return err
 		}
 		if err := install_template.Execute(&k8sinventoryBuf, nil); err != nil {
 			log.Error(err)
@@ -177,7 +177,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			commonInventoryStr, err := ansible.RenderCommonInventory()
 			if err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 			// log.Debug("yaml", &k8sinventoryBuf)
 			// 创建job
@@ -200,7 +200,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 
 			if _, err := helper.V1.Job.Create(context.TODO(), job); err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 
 			// 记录事件开始
@@ -221,7 +221,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 				job := jobAction.Obj.(*v1.Job)
 				switch jobAction.Type {
 				case db.KVActionTypeDelete:
-					return
+					return nil
 				case db.KVActionTypeSet:
 					switch job.Status.Phase {
 					case core.PhaseCompleted:
@@ -250,7 +250,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 
 						//打标签
 						c.handleK8sLabel(ctx, k8s)
-						return
+						return nil
 					case core.PhaseFailed:
 						if len(k8s.Spec.K8SWorkerNew.Hosts) == 0 {
 							k8s.Metadata.Annotations["k8sinstall"] = core.PhaseFailed
@@ -290,7 +290,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 					}
 				}
 			}
-			return
+			return nil
 			//卸载k8s集群
 		case core.PhaseUninstalled:
 			c.deleteK8s(ctx, k8s, inventoryBuf)
@@ -308,7 +308,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 	case core.PhaseDeleting:
 		// 如果资源正在删除中，则跳过
 		if _, ok := c.deletings.Get(k8s.GetKey()); ok {
-			return
+			return nil
 		}
 		c.deletings.Set(k8s.GetKey(), k8s.SpecHash())
 		defer c.deletings.Unset(k8s.GetKey())
@@ -321,14 +321,14 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 				eventList, err := c.helper.V1.Event.List(context.TODO(), "")
 				if err != nil {
 					log.Error(err)
-					return
+					return err
 				}
 				for _, eventObj := range eventList {
 					event := eventObj.(*v1.Event)
 					if event.Spec.ResourceRef.Kind == core.KindK8sConfig && event.Spec.ResourceRef.Namespace == k8s.Metadata.Namespace && event.Spec.ResourceRef.Name == k8s.Metadata.Name {
 						if _, err := c.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
 							log.Error(err)
-							return
+							return err
 						}
 					}
 				}
@@ -338,15 +338,17 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			k8s.Metadata.Finalizers = k8s.Metadata.Finalizers[1:]
 			if _, err := c.registry.Update(context.TODO(), k8s, core.WithFinalizer()); err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 		} else {
 			if _, err := c.registry.Delete(context.TODO(), k8s.Metadata.Namespace, k8s.Metadata.Name); err != nil {
 				log.Error(err)
-				return
+				return err
 			}
 		}
 	}
+
+	return nil
 }
 
 //卸载k8s 集群

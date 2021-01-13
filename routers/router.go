@@ -9,6 +9,7 @@ import (
 	_ "github.com/wujie1993/waves/docs"
 	"github.com/wujie1993/waves/pkg/setting"
 	"github.com/wujie1993/waves/pkg/version"
+	extV1 "github.com/wujie1993/waves/routers/api/extensions/v1"
 	"github.com/wujie1993/waves/routers/api/v1"
 	"github.com/wujie1993/waves/routers/api/v2"
 )
@@ -43,11 +44,19 @@ func InitRouter() *gin.Engine {
 
 	apiRouter := baseRouter.Group("/api")
 	// 实体对象接口组
-	apiv1 := apiRouter.Group("/v1")
-	// apiv1.Use(jwt.JWT())
+	apiV1 := apiRouter.Group("/v1")
+	// apiV1.Use(jwt.JWT())
 	{
-		ns := apiv1.Group("/namespaces/:namespace")
+		nsCtl := v1.NewNamespaceController()
+		apiV1.GET("/namespaces", nsCtl.GetNamespaces)
+		apiV1.POST("/namespaces", nsCtl.PostNamespace)
+
+		ns := apiV1.Group("/namespaces/:namespace")
 		{
+			ns.GET("", nsCtl.GetNamespace)
+			ns.PUT("", nsCtl.PutNamespace)
+			ns.DELETE("", nsCtl.DeleteNamespace)
+
 			app := ns.Group("/apps")
 			{
 				c := v1.NewAppController()
@@ -89,7 +98,7 @@ func InitRouter() *gin.Engine {
 			k8sconfig.DELETE(":name", c.DeleteK8sClusterConfig)
 		}
 
-		job := apiv1.Group("/jobs")
+		job := apiV1.Group("/jobs")
 		{
 			c := v1.NewJobController()
 			job.GET("", c.GetJobs)
@@ -100,7 +109,7 @@ func InitRouter() *gin.Engine {
 			job.GET(":name/log", c.GetJobLog)
 		}
 
-		gpu := apiv1.Group("/gpus")
+		gpu := apiV1.Group("/gpus")
 		{
 			c := v1.NewGPUController()
 			gpu.GET("", c.GetGPUs)
@@ -110,7 +119,7 @@ func InitRouter() *gin.Engine {
 			gpu.DELETE(":name", c.DeleteGPU)
 		}
 
-		pkg := apiv1.Group("/pkgs")
+		pkg := apiV1.Group("/pkgs")
 		{
 			c := v1.NewPkgController()
 			pkg.GET("", c.GetPkgs)
@@ -120,7 +129,7 @@ func InitRouter() *gin.Engine {
 			pkg.DELETE(":name", c.DeletePkg)
 		}
 
-		audit := apiv1.Group("/audits")
+		audit := apiV1.Group("/audits")
 		{
 			c := v1.NewAuditController()
 			audit.GET("", c.GetAudits)
@@ -130,7 +139,7 @@ func InitRouter() *gin.Engine {
 			audit.DELETE(":name", c.DeleteAudit)
 		}
 
-		event := apiv1.Group("/events")
+		event := apiV1.Group("/events")
 		{
 			c := v1.NewEventController()
 			event.GET("", c.GetEvents)
@@ -140,7 +149,7 @@ func InitRouter() *gin.Engine {
 			event.DELETE(":name", c.DeleteEvent)
 		}
 
-		host := apiv1.Group("/hosts")
+		host := apiV1.Group("/hosts")
 		{
 			c := v1.NewHostController()
 			host.GET("", c.GetHosts)
@@ -150,7 +159,7 @@ func InitRouter() *gin.Engine {
 			host.DELETE(":name", c.DeleteHost)
 		}
 
-		project := apiv1.Group("/project")
+		project := apiV1.Group("/project")
 		{
 			c := v1.NewProjectController()
 			project.GET("", c.GetProjects)
@@ -159,10 +168,26 @@ func InitRouter() *gin.Engine {
 			project.PUT(":name", c.PutProject)
 			project.DELETE(":name", c.DeleteProject)
 		}
+
+		topology := apiV1.Group("/topology")
+		{
+			c := extV1.NewTopologyController()
+			topology.GET("", c.GetTopology)
+		}
+
+		revision := apiV1.Group("/revisions")
+		{
+			c := v1.NewRevisionController()
+			revision.GET("", c.GetRevisions)
+			revision.POST("", c.PostRevision)
+			revision.GET(":name", c.GetRevision)
+			revision.PUT(":name", c.PutRevision)
+			revision.DELETE(":name", c.DeleteRevision)
+		}
 	}
-	apiv2 := apiRouter.Group("/v2")
+	apiV2 := apiRouter.Group("/v2")
 	{
-		ns := apiv2.Group("/namespaces/:namespace")
+		ns := apiV2.Group("/namespaces/:namespace")
 		{
 			appInstance := ns.Group("/appinstances")
 			{
@@ -172,10 +197,14 @@ func InitRouter() *gin.Engine {
 				appInstance.GET(":name", c.GetAppInstance)
 				appInstance.PUT(":name", c.PutAppInstance)
 				appInstance.DELETE(":name", c.DeleteAppInstance)
+				appInstance.GET(":name/revisions", c.GetAppInstanceRevisions)
+				appInstance.GET(":name/revisions/:revision", c.GetAppInstanceRevision)
+				appInstance.PUT(":name/revisions/:revision", c.PutAppInstanceRevision)
+				appInstance.DELETE(":name/revisions/:revision", c.DeleteAppInstanceRevision)
 			}
 		}
 
-		job := apiv2.Group("/jobs")
+		job := apiV2.Group("/jobs")
 		{
 			c := v2.NewJobController()
 			job.GET("", c.GetJobs)
@@ -184,6 +213,16 @@ func InitRouter() *gin.Engine {
 			job.PUT(":name", c.PutJob)
 			job.DELETE(":name", c.DeleteJob)
 			job.GET(":name/log", c.GetJobLog)
+		}
+
+		host := apiV2.Group("/hosts")
+		{
+			c := v2.NewHostController()
+			host.GET("", c.GetHosts)
+			host.POST("", c.PostHost)
+			host.GET(":name", c.GetHost)
+			host.PUT(":name", c.PutHost)
+			host.DELETE(":name", c.DeleteHost)
 		}
 	}
 

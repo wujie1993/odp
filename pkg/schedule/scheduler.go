@@ -18,11 +18,11 @@ import (
 type Scheduler struct {
 	//workers     map[string]*Worker
 	//cancels     map[string]context.CancelFunc
-	workers     operators.MutexMap
-	cancels     operators.MutexMap
+	workers     *operators.MutexMap
+	cancels     *operators.MutexMap
 	actionQueue chan core.ApiObjectAction
 	ctx         context.Context
-	helper      orm.Helper
+	helper      *orm.Helper
 	mutex       sync.Mutex
 }
 

@@ -12,6 +12,7 @@ var helper Helper
 func init() {
 	helper = Helper{
 		AppInstance: NewAppInstanceRegistry(),
+		Host:        NewHostRegistry(),
 		Job:         NewJobRegistry(),
 	}
 }
@@ -19,6 +20,7 @@ func init() {
 // Helper 对v2版本所有实体对象的操作封装
 type Helper struct {
 	AppInstance AppInstanceRegistry
+	Host        HostRegistry
 	Job         JobRegistry
 }
 
@@ -32,6 +34,9 @@ func New(kind string) (core.ApiObject, error) {
 
 	case core.KindAppInstance:
 		return NewAppInstance(), nil
+
+	case core.KindHost:
+		return NewHost(), nil
 
 	case core.KindJob:
 		return NewJob(), nil

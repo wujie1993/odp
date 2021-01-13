@@ -15,7 +15,6 @@ var conversion core.Conversion
 func init() {
 	conversion = core.NewConversion()
 
-	// 注册v1版本结构与运行时结构互相转换方法
 	registerConversionFunc(core.VK{
 		Kind: core.KindAppInstance,
 	}, core.VK{
@@ -43,6 +42,20 @@ func init() {
 	}, core.VK{
 		Kind: core.KindJob,
 	}, convertCoreV2JobToCoreRuntimeJob)
+
+	registerConversionFunc(core.VK{
+		Kind: core.KindHost,
+	}, core.VK{
+		ApiVersion: ApiVersion,
+		Kind:       core.KindHost,
+	}, convertCoreRuntimeHostToCoreV2Host)
+
+	registerConversionFunc(core.VK{
+		ApiVersion: ApiVersion,
+		Kind:       core.KindHost,
+	}, core.VK{
+		Kind: core.KindHost,
+	}, convertCoreV2HostToCoreRuntimeHost)
 }
 
 func newGVK(kind string) core.GVK {
@@ -137,6 +150,38 @@ func convertCoreRuntimeJobToCoreV2Job(srcObj core.ApiObject, dstGVK core.GVK) (c
 
 func convertCoreV2JobToCoreRuntimeJob(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	_, ok := srcObj.(*Job)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of source object")
+	}
+	dstObj, err := runtime.New(dstGVK.Kind)
+	if err != nil {
+		return nil, err
+	}
+	if err := core.DeepCopy(srcObj, dstObj); err != nil {
+		return nil, err
+	}
+	dstObj.SetGVK(dstGVK)
+	return dstObj, nil
+}
+
+func convertCoreRuntimeHostToCoreV2Host(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
+	_, ok := srcObj.(*runtime.Host)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of source object")
+	}
+	dstObj, err := New(dstGVK.Kind)
+	if err != nil {
+		return nil, err
+	}
+	if err := core.DeepCopy(srcObj, dstObj); err != nil {
+		return nil, err
+	}
+	dstObj.SetGVK(dstGVK)
+	return dstObj, nil
+}
+
+func convertCoreV2HostToCoreRuntimeHost(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
+	_, ok := srcObj.(*Host)
 	if !ok {
 		return nil, e.Errorf("mismatch with type of source object")
 	}

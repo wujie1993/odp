@@ -16,12 +16,17 @@ type ApiObject interface {
 	Versioner
 
 	GetKey() string
+	SetNamespace(string)
+	SetName(string)
 	GetGVK() GVK
 	SetGVK(gvk GVK)
 	GetStatus() Status
 	SetStatus(Status)
 	SetStatusPhase(string)
 	GetStatusPhase() string
+
+	Sha256() string
+	DeepCopyApiObject() ApiObject
 }
 
 type ApiObjectList []ApiObject

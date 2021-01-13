@@ -14,45 +14,32 @@ type EventOperator struct {
 	BaseOperator
 }
 
-func (o *EventOperator) handleEvent(ctx context.Context, obj core.ApiObject) {
+func (o *EventOperator) handleEvent(ctx context.Context, obj core.ApiObject) error {
 	event := obj.(*v1.Event)
 	log.Tracef("%s '%s' is %s", event.Kind, event.GetKey(), event.Status.Phase)
 
 	switch event.Status.Phase {
 	case core.PhaseDeleting:
-		// 如果资源正在删除中，则跳过
-		if _, ok := o.deletings.Get(event.GetKey()); ok {
-			return
-		}
-		o.deletings.Set(event.GetKey(), event.SpecHash())
-		defer o.deletings.Unset(event.GetKey())
+		return o.handleDeleting(ctx, obj)
+	}
+	return nil
+}
 
-		if len(event.Metadata.Finalizers) > 0 {
-			// 每次只处理一项Finalizer
-			switch event.Metadata.Finalizers[0] {
-			case core.FinalizerCleanRefJob:
-				// 同步删除关联的任务
-				if event.Spec.JobRef != "" {
-					if _, err := o.helper.V1.Job.Delete(context.TODO(), "", event.Spec.JobRef, core.WithSync()); err != nil {
-						log.Error(err)
-						return
-					}
-				}
-			}
+func (o EventOperator) finalizeEvent(ctx context.Context, obj core.ApiObject) error {
+	event := obj.(*v1.Event)
 
-			o.deletings.Unset(event.GetKey())
-			event.Metadata.Finalizers = event.Metadata.Finalizers[1:]
-			if _, err := o.helper.V1.Event.Update(context.TODO(), event, core.WithFinalizer()); err != nil {
+	// 每次只处理一项Finalizer
+	switch event.Metadata.Finalizers[0] {
+	case core.FinalizerCleanRefJob:
+		// 同步删除关联的任务
+		if event.Spec.JobRef != "" {
+			if _, err := o.helper.V1.Job.Delete(context.TODO(), "", event.Spec.JobRef); err != nil {
 				log.Error(err)
-				return
-			}
-		} else {
-			if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name); err != nil {
-				log.Error(err)
-				return
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 func NewEventOperator() *EventOperator {
@@ -60,5 +47,6 @@ func NewEventOperator() *EventOperator {
 		BaseOperator: NewBaseOperator(v1.NewEventRegistry()),
 	}
 	o.SetHandleFunc(o.handleEvent)
+	o.SetFinalizeFunc(o.finalizeEvent)
 	return o
 }

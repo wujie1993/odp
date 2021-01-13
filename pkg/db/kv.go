@@ -252,6 +252,10 @@ func (c *EtcdClient) Watch(ctx context.Context, key string, withPrefix bool) <-c
 							ActionType: KVActionTypeSet,
 						}
 					case mvccpb.DELETE:
+						if event.PrevKv == nil {
+							continue
+						}
+
 						valueBytes, err := base64.RawStdEncoding.DecodeString(string(event.PrevKv.Value))
 						if err != nil {
 							log.Error(err)

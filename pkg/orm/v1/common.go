@@ -32,6 +32,8 @@ type AppInstanceRef struct {
 type ConfigMapRef struct {
 	Namespace string
 	Name      string
+	Hash      string
+	Revision  int
 }
 
 type LivenessProbe struct {

@@ -2,9 +2,11 @@ package registry
 
 import (
 	"reflect"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/wujie1993/waves/pkg/db"
 	"github.com/wujie1993/waves/pkg/e"
 	"github.com/wujie1993/waves/pkg/orm/core"
 )
@@ -36,6 +38,40 @@ func RegisterStorageRegistry(registry ApiObjectRegistry) error {
 	log.Debugf("register %+v with registry %+v", gvk, reflect.TypeOf(registry))
 	storageRegistry[gvk] = registry
 	return nil
+}
+
+// MigrateNamespacedObjects 将归属于命名空间下的资源存储路径进行迁移，从/registry/namespaces/<namespace>/<kind>/<name>迁移至/registry/<kind>/<namespace>/<name>
+func MigrateNamespacedObjects() {
+	keyPrefix := core.RegistryPrefix + "/namespaces/"
+	kvList, err := db.KV.List(keyPrefix, true)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for key, value := range kvList {
+		// 拆分<namespace>/<kind>/<name>
+		keyParts := strings.Split(strings.TrimPrefix(key, keyPrefix), "/")
+		if len(keyParts) < 3 {
+			continue
+		}
+
+		// 重组新键名
+		newKey := core.RegistryPrefix + "/" + keyParts[1] + "/" + keyParts[0] + "/" + keyParts[2]
+		log.Debugf("migrate storage path from %s to %s", key, newKey)
+
+		// 写入新数据
+		if err := db.KV.Set(newKey, value); err != nil {
+			log.Error(err)
+			return
+		}
+
+		// 删除旧数据
+		if _, err := db.KV.Delete(key); err != nil {
+			log.Error(err)
+			return
+		}
+	}
 }
 
 // UpgradeStorageVersion 将数据库中的对象转换为注册版本

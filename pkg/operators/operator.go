@@ -33,44 +33,45 @@ type MutexMap struct {
 
 func (m *MutexMap) Set(key string, value interface{}) {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	m.hashMap[key] = value
+	m.mutex.Unlock()
 }
 
 func (m *MutexMap) Unset(key string) {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	delete(m.hashMap, key)
+	m.mutex.Unlock()
 }
 
 func (m *MutexMap) Get(key string) (interface{}, bool) {
 	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 	value, ok := m.hashMap[key]
+	m.mutex.RUnlock()
 	return value, ok
 }
 
-func NewMutexMap() MutexMap {
-	return MutexMap{
+func NewMutexMap() *MutexMap {
+	return &MutexMap{
 		hashMap: make(map[string]interface{}),
 	}
 }
 
-type HandleFunc func(ctx context.Context, obj core.ApiObject)
+type HandleFunc func(ctx context.Context, obj core.ApiObject) error
 
 type ReconcileFunc func(ctx context.Context, obj core.ApiObject)
 
 type BaseOperator struct {
-	helper                orm.Helper
+	helper                *orm.Helper
 	registry              registry.ApiObjectRegistry
 	namespace             string
 	handle                HandleFunc
 	reconcile             ReconcileFunc
+	finalize              HandleFunc
 	reconcilePeriodSecond int
 	objQueue              chan core.ApiObject
 	runMutex              sync.Mutex
-	deletings             MutexMap
-	applyings             MutexMap
+	deletings             *MutexMap
+	applyings             *MutexMap
 }
 
 func (o BaseOperator) Run(ctx context.Context) {
@@ -180,6 +181,48 @@ func (o *BaseOperator) SetHandleFunc(f HandleFunc) {
 func (o *BaseOperator) SetReconcileFunc(f ReconcileFunc, periodSecond int) {
 	o.reconcile = f
 	o.reconcilePeriodSecond = periodSecond
+}
+
+// SetReconcileFunc 设置finalizers的关联资源清理方法，每次执行时处理finalizers中的第一项
+func (o *BaseOperator) SetFinalizeFunc(f HandleFunc) {
+	o.finalize = f
+}
+
+// handleDeleting 删除资源以及清理其关联资源，首先会清理关联资源，关联资源的清理进度通过finalizers表示，finalizers是一个资源清理队列，每次清理时从finalizers中取出第一项并清理其对应的资源，直至finalizers为空时，才删除资源记录。
+func (o BaseOperator) handleDeleting(ctx context.Context, obj core.ApiObject) error {
+	key := obj.GetKey()
+	// 如果资源正在删除中，则跳过
+	if _, ok := o.deletings.Get(key); ok {
+		return nil
+	}
+
+	// 设置删除锁
+	o.deletings.Set(key, obj.SpecHash())
+	defer o.deletings.Unset(key)
+
+	metadata := obj.GetMetadata()
+
+	if len(metadata.Finalizers) > 0 && o.finalize != nil {
+		// 每次只处理一项Finalizer
+		if err := o.finalize(ctx, obj); err != nil {
+			log.Error(err)
+			return err
+		}
+
+		metadata.Finalizers = metadata.Finalizers[1:]
+		obj.SetMetadata(metadata)
+		if _, err := o.registry.Update(context.TODO(), obj, core.WithFinalizer()); err != nil {
+			log.Error(err)
+			return err
+		}
+	} else if len(metadata.Finalizers) == 0 {
+		if _, err := o.registry.Delete(context.TODO(), metadata.Namespace, metadata.Name); err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (o BaseOperator) getLockKey() string {

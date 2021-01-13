@@ -28,6 +28,9 @@ func New(kind string) (core.ApiObject, error) {
 	case core.KindAppInstance:
 		return NewAppInstance(), nil
 
+	case core.KindHost:
+		return NewHost(), nil
+
 	case core.KindJob:
 		return NewJob(), nil
 

@@ -43,6 +43,20 @@ func init() {
 		ApiVersion: ApiVersion,
 		Kind:       core.KindJob,
 	}, convertCoreRuntimeJobToCoreV1Job)
+
+	registerConversionFunc(core.VK{
+		ApiVersion: ApiVersion,
+		Kind:       core.KindHost,
+	}, core.VK{
+		Kind: core.KindHost,
+	}, convertCoreV1HostToCoreRuntimeHost)
+
+	registerConversionFunc(core.VK{
+		Kind: core.KindHost,
+	}, core.VK{
+		ApiVersion: ApiVersion,
+		Kind:       core.KindHost,
+	}, convertCoreRuntimeHostToCoreV1Host)
 }
 
 func registerConversionFunc(srcVK core.VK, dstVK core.VK, convertFunc core.ConvertFunc) {
@@ -252,6 +266,138 @@ func convertCoreRuntimeJobToCoreV1Job(srcObj core.ApiObject, dstGVK core.GVK) (c
 			},
 		}
 		dstJob.Spec.Exec.Ansible.Playbook = play.Playbook.Value
+	}
+	dstObj.SetGVK(dstGVK)
+	return dstObj, nil
+}
+
+func convertCoreV1HostToCoreRuntimeHost(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
+	srcJob, ok := srcObj.(*Host)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of source object")
+	}
+	dstObj, err := runtime.New(dstGVK.Kind)
+	if err != nil {
+		return nil, err
+	}
+	dstObj.SetMetadata(srcObj.GetMetadata())
+	dstObj.SetStatus(srcObj.GetStatus())
+
+	dstJob, ok := dstObj.(*runtime.Host)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of destnation object")
+	}
+	dstJob.Spec.SSH = runtime.HostSSH{
+		Host:     srcJob.Spec.SSH.Host,
+		User:     srcJob.Spec.SSH.User,
+		Password: srcJob.Spec.SSH.Password,
+		Port:     srcJob.Spec.SSH.Port,
+	}
+	dstJob.Info = runtime.HostInfo{
+		OS: runtime.OS{
+			Kernel:  srcJob.Spec.Info.OS.Kernel,
+			Release: srcJob.Spec.Info.OS.Release,
+		},
+		CPU: runtime.CPU{
+			Cores: srcJob.Spec.Info.CPU.Cores,
+			Model: srcJob.Spec.Info.CPU.Model,
+		},
+		Disk: runtime.Disk{
+			Size: srcJob.Spec.Info.Disk.Size,
+		},
+		Memory: runtime.Memory{
+			Size:  srcJob.Spec.Info.Memory.Size,
+			Model: srcJob.Spec.Info.Memory.Model,
+		},
+	}
+	dstJob.Info.GPUs = []runtime.GPUInfo{}
+	for _, gpu := range srcJob.Spec.Info.GPUs {
+		dstJob.Info.GPUs = append(dstJob.Info.GPUs, runtime.GPUInfo{
+			ID:     gpu.ID,
+			Memory: gpu.Memory,
+			Model:  gpu.Model,
+			Type:   gpu.Type,
+			UUID:   gpu.UUID,
+		})
+	}
+	dstJob.Info.Plugins = []runtime.HostPlugin{}
+	for _, plugin := range srcJob.Spec.Plugins {
+		dstJob.Info.Plugins = append(dstJob.Info.Plugins, runtime.HostPlugin{
+			AppInstanceRef: runtime.AppInstanceRef{
+				Namespace: plugin.AppInstanceRef.Namespace,
+				Name:      plugin.AppInstanceRef.Name,
+			},
+			AppRef: runtime.AppRef{
+				Version: plugin.AppRef.Version,
+				Name:    plugin.AppRef.Name,
+			},
+		})
+	}
+	dstObj.SetGVK(dstGVK)
+	return dstObj, nil
+}
+
+func convertCoreRuntimeHostToCoreV1Host(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
+	srcJob, ok := srcObj.(*runtime.Host)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of source object")
+	}
+	dstObj, err := New(dstGVK.Kind)
+	if err != nil {
+		return nil, err
+	}
+	dstObj.SetMetadata(srcObj.GetMetadata())
+	dstObj.SetStatus(srcObj.GetStatus())
+
+	dstJob, ok := dstObj.(*Host)
+	if !ok {
+		return nil, e.Errorf("mismatch with type of destnation object")
+	}
+	dstJob.Spec.SSH = HostSSH{
+		Host:     srcJob.Spec.SSH.Host,
+		User:     srcJob.Spec.SSH.User,
+		Password: srcJob.Spec.SSH.Password,
+		Port:     srcJob.Spec.SSH.Port,
+	}
+	dstJob.Spec.Info = HostInfo{
+		OS: OS{
+			Kernel:  srcJob.Info.OS.Kernel,
+			Release: srcJob.Info.OS.Release,
+		},
+		CPU: CPU{
+			Cores: srcJob.Info.CPU.Cores,
+			Model: srcJob.Info.CPU.Model,
+		},
+		Disk: Disk{
+			Size: srcJob.Info.Disk.Size,
+		},
+		Memory: Memory{
+			Size:  srcJob.Info.Memory.Size,
+			Model: srcJob.Info.Memory.Model,
+		},
+	}
+	dstJob.Spec.Info.GPUs = []GPUInfo{}
+	for _, gpu := range srcJob.Info.GPUs {
+		dstJob.Spec.Info.GPUs = append(dstJob.Spec.Info.GPUs, GPUInfo{
+			ID:     gpu.ID,
+			Memory: gpu.Memory,
+			Model:  gpu.Model,
+			Type:   gpu.Type,
+			UUID:   gpu.UUID,
+		})
+	}
+	dstJob.Spec.Plugins = []HostPlugin{}
+	for _, plugin := range srcJob.Info.Plugins {
+		dstJob.Spec.Plugins = append(dstJob.Spec.Plugins, HostPlugin{
+			AppInstanceRef: AppInstanceRef{
+				Namespace: plugin.AppInstanceRef.Namespace,
+				Name:      plugin.AppInstanceRef.Name,
+			},
+			AppRef: AppRef{
+				Version: plugin.AppRef.Version,
+				Name:    plugin.AppRef.Name,
+			},
+		})
 	}
 	dstObj.SetGVK(dstGVK)
 	return dstObj, nil

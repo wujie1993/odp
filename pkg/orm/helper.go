@@ -23,8 +23,16 @@ type Helper struct {
 	V2 v2.Helper
 }
 
-func GetHelper() Helper {
-	return helper
+func GetHelper() *Helper {
+	return &helper
+}
+
+func NewByMetaType(metaType core.MetaType) (core.ApiObject, error) {
+	return New(core.GVK{
+		ApiVersion: metaType.ApiVersion,
+		Group:      core.Group,
+		Kind:       metaType.Kind,
+	})
 }
 
 func New(gvk core.GVK) (core.ApiObject, error) {

@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/wujie1993/waves/pkg/db"
+	"github.com/wujie1993/waves/pkg/e"
 	"github.com/wujie1993/waves/pkg/orm/core"
 )
 
@@ -24,7 +25,9 @@ type ApiObjectRegistry interface {
 	Get(ctx context.Context, namespace, name string, opts ...core.OpOpt) (core.ApiObject, error)
 	List(ctx context.Context, namespace string, opts ...core.OpOpt) (core.ApiObjectList, error)
 	ListWatch(ctx context.Context, namespace string) <-chan core.ApiObjectAction
+
 	MigrateObjects() error
+	Namespaced() bool
 
 	GVK() core.GVK
 }
@@ -52,6 +55,11 @@ type Registry struct {
 	postCreateHook HookFunc
 	postUpdateHook HookFunc
 	postDeleteHook HookFunc
+
+	// 修订历史记录器
+	revisioner Revisioner
+
+	defaultFinalizers []string
 }
 
 // Create 创建单个实体对象
@@ -94,10 +102,14 @@ func (r Registry) createWithOpts(ctx context.Context, obj core.ApiObject, opts .
 		return nil, errors.New(fmt.Sprintf("create failed: %s already exist", key))
 	}
 
-	// 字段填充
+	// 设置元数据
+	if !r.namespaced {
+		metadata.Namespace = ""
+	}
 	metadata.Uid = uuid.New().String()
 	metadata.CreateTime = time.Now()
 	metadata.UpdateTime = metadata.CreateTime
+	metadata.Finalizers = r.defaultFinalizers
 	obj.SetMetadata(metadata)
 	obj.SetStatus(core.NewStatus())
 
@@ -156,16 +168,16 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 		}
 	}
 
-	// 执行前置钩子
+	// 执行更新前置钩子
 	if r.preUpdateHook != nil {
 		if err := r.preUpdateHook(obj); err != nil {
 			return nil, err
 		}
 	}
 
-	metadata := obj.GetMetadata()
+	metadata := core.Metadata{}
+	obj.GetMetadata().CopyTo(&metadata)
 
-	// 获取存储键
 	key := r.getKey(metadata.Namespace, metadata.Name)
 
 	// 获取并判断对象是否存在
@@ -174,31 +186,64 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 		return nil, err
 	}
 	if oldObj == nil {
-		return nil, errors.New(fmt.Sprintf("update failed: %s not found", key))
+		return nil, e.Errorf("update failed: %s not found", key)
 	}
 
-	// 重置不可修改字段
+	// 更新或重置元数据
 	oldMetadata := oldObj.GetMetadata()
+	if !r.namespaced {
+		metadata.Namespace = ""
+	}
 	metadata.CreateTime = oldMetadata.CreateTime
 	metadata.UpdateTime = time.Now()
 	metadata.Uid = oldMetadata.Uid
 	metadata.ResourceVersion = oldMetadata.ResourceVersion
-	if !option.WithFinalizer {
-		metadata.Finalizers = oldMetadata.Finalizers
+
+	if !option.WithStatus {
+		// 仅更新Spec
+		spec, err := obj.SpecEncode()
+		if err != nil {
+			return nil, err
+		}
+		if err := core.DeepCopy(oldObj, obj); err != nil {
+			return nil, err
+		}
+		if err := obj.SpecDecode(spec); err != nil {
+			return nil, err
+		}
 	}
-	status := oldObj.GetStatus()
-	if obj.SpecHash() != oldObj.SpecHash() {
-		// .Spec内容发生更新时累加资源版本, 并将资源状态置为等待中
+
+	oldSpec := oldObj.SpecHash()
+	if obj.SpecHash() != oldSpec {
+		// 资源内容体发生更新时累加资源版本号, 并将资源状态置为等待中
+		metadata.Annotations[core.AnnotationLastAppliedConfiguration] = string(oldSpec)
 		metadata.ResourceVersion++
-		status.Phase = core.PhaseWaiting
+
+		// 设置资源状态
+		if !option.WithStatus {
+			obj.SetStatusPhase(core.PhaseWaiting)
+		}
+
+		// 生成历史修订版本
+		if r.revisioner != nil {
+			if err := r.revisioner.SetRevision(ctx, oldObj); err != nil {
+				return nil, err
+			}
+		}
 	} else if option.WhenSpecChanged {
 		return oldObj, nil
 	}
-	obj.SetMetadata(metadata)
-	// 是否连同.Status一起更新
-	if !option.WithStatus {
-		obj.SetStatus(status)
+
+	if !option.WithFinalizer {
+		// 当资源处于删除状态时，重置finalizers，否则还原至更新前的finalizers
+		if obj.GetStatus().Phase != core.PhaseDeleting {
+			metadata.Finalizers = r.defaultFinalizers
+		} else {
+			metadata.Finalizers = oldMetadata.Finalizers
+		}
 	}
+
+	obj.SetMetadata(metadata)
 
 	data, err := json.Marshal(obj)
 	if err != nil {
@@ -216,7 +261,7 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 			return nil, err
 		}
 	}
-	log.Tracef("updated %s: %s", obj.GetKey(), string(data))
+	log.Tracef("updated %s: %s", key, string(data))
 	return obj, nil
 }
 
@@ -794,7 +839,7 @@ func (r Registry) MigrateObjects() error {
 		if err := json.Unmarshal([]byte(value), metaType); err != nil {
 			return err
 		}
-		if metaType.Kind != r.gvk.Kind || metaType.ApiVersion == r.gvk.ApiVersion {
+		if metaType.Kind != r.gvk.Kind {
 			continue
 		}
 
@@ -805,12 +850,38 @@ func (r Registry) MigrateObjects() error {
 		}
 
 		metadata := obj.GetMetadata()
+		hash := obj.Sha256()
+
+		// 修复资源内容
+		if !r.namespaced {
+			metadata.Namespace = ""
+		}
+		if obj.GetStatusPhase() != core.PhaseDeleting {
+			metadata.Finalizers = r.defaultFinalizers
+		}
+		if r.mutateHook != nil {
+			r.mutateHook(obj)
+		}
+		obj.SetMetadata(metadata)
+
+		if metaType.ApiVersion != r.gvk.ApiVersion {
+			// 结构版本不同时，存储转换后的结构内容
+			log.Debugf("migrate %s from version %s to %s", obj.GetKey(), metaType.ApiVersion, r.gvk.ApiVersion)
+		} else {
+			// 对比资源修复前与修复后的内容是否发生变化，有变化则更新为修复后的内容
+			if hash == obj.Sha256() {
+				continue
+			}
+
+			// 结构版本相同时，如果无需填充数据，则跳过
+			log.Debugf("update %s", obj.GetKey())
+		}
+
 		data, err := json.Marshal(obj)
 		if err != nil {
 			return err
 		}
 
-		log.Debugf("migrate %s from %+v to %+v", obj.GetKey(), core.GVK{Group: core.Group, ApiVersion: metaType.ApiVersion, Kind: metaType.Kind}, r.gvk)
 		if err := db.KV.Set(r.getKey(metadata.Namespace, metadata.Name), string(data)); err != nil {
 			return err
 		}
@@ -867,23 +938,32 @@ func (r *Registry) SetPostDeleteHook(hook HookFunc) {
 	r.postDeleteHook = hook
 }
 
+// SetRevisioner 设置修订历史记录器
+func (r *Registry) SetRevisioner(revisioner Revisioner) {
+	r.revisioner = revisioner
+}
+
+// SetDefaultFinalizers 设置默认finalizers
+func (r *Registry) SetDefaultFinalizers(finalizers []string) {
+	r.defaultFinalizers = finalizers
+}
+
 // Namespaced 返回该存储器对应的是否是命名空间资源
 func (r Registry) Namespaced() bool {
 	return r.namespaced
 }
 
 func (r Registry) getKey(namespace string, name string) string {
-	key := core.RegistryPrefix
+	key := core.RegistryPrefix + "/" + r.gvk.Kind + "s"
 	if r.namespaced {
 		if namespace != "" {
-			key += "/namespaces/" + namespace
+			key += "/" + namespace
 		} else {
-			key += "/namespaces/" + core.DefaultNamespace
+			key += "/" + core.DefaultNamespace
 		}
 	}
-	key += "/" + r.gvk.Kind + "s/"
 	if name != "" {
-		key += name
+		key += "/" + name
 	}
 	return key
 }

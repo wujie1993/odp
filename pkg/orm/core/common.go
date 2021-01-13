@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	AnnotationPrefix                = "pcitech.io/"
-	AnnotationJobPrefix             = AnnotationPrefix + "job/"
-	AnnotationAlgorithmPluginPrefix = AnnotationPrefix + "algorithm-plugin/"
+	AnnotationPrefix                   = "pcitech.io/"
+	AnnotationJobPrefix                = AnnotationPrefix + "job/"
+	AnnotationAlgorithmPluginPrefix    = AnnotationPrefix + "algorithm-plugin/"
+	AnnotationLastAppliedConfiguration = AnnotationPrefix + "last-applied-configuration"
 
 	Group        = "core"
 	ApiVersionV1 = "v1"
@@ -26,6 +27,7 @@ const (
 	AppActionHealthcheck = "healthcheck"
 	AppActionUninstall   = "uninstall"
 	AppActionUpgrade     = "upgrade"
+	AppActionRevert      = "revert"
 
 	AuditActionCreate = "create"
 	AuditActionUpdate = "update"
@@ -46,9 +48,11 @@ const (
 	KindConfigMap   = "configMap"
 	KindK8sConfig   = "k8sconfig"
 	KindK8sLabel    = "k8slabel"
+	KindNamespace   = "namespace"
 	KindPkg         = "pkg"
 	KindGPU         = "gpu"
 	KindProject     = "project"
+	KindRevision    = "revision"
 
 	ConditionTypeConnected   = "Connected"
 	ConditionTypeInitialized = "Initialized"
@@ -61,18 +65,18 @@ const (
 	ConditionStatusTrue  = "True"
 	ConditionStatusFalse = "False"
 
-	EventActionInstall        = "Install"
-	EventActionConfigure      = "Configure"
-	EventActionUninstall      = "Uninstall"
-	EventActionHealthCheck    = "HealthCheck"
-	EventActionUpgrade        = "Upgrade"
-	EventActionUpgradeBackoff = "UpgradeBackoff"
-	EventActionLabel          = "Label"
-	EventActionUnLabel        = "UnLabel"
-	EventActionConnect        = "Connect"
-	EventActionInitial        = "Initial"
-	EventActionUninstallNode  = "UninstallNode"
-	EventActionInstallNode    = "InstallNode"
+	EventActionInstall       = "Install"
+	EventActionConfigure     = "Configure"
+	EventActionUninstall     = "Uninstall"
+	EventActionHealthCheck   = "HealthCheck"
+	EventActionUpgrade       = "Upgrade"
+	EventActionRevert        = "Revert"
+	EventActionLabel         = "Label"
+	EventActionUnLabel       = "UnLabel"
+	EventActionConnect       = "Connect"
+	EventActionInitial       = "Initial"
+	EventActionUninstallNode = "UninstallNode"
+	EventActionInstallNode   = "InstallNode"
 
 	FinalizerCleanRefJob       = "CleanRefJob"
 	FinalizerCleanJobWorkDir   = "CleanJobWorkDir"
@@ -80,34 +84,35 @@ const (
 	FinalizerReleaseRefGPU     = "ReleaseRefGPU"
 	FinalizerCleanRefEvent     = "CleanRefEvent"
 	FinalizerCleanRefConfigMap = "CleanRefConfigMap"
+	FinalizerCleanRevision     = "CleanRevision"
 
 	JobExecTypeAnsible         = "ansible"
 	JobDefaultFailureThreshold = 1
 	JobDefaultTimeoutSeconds   = 3600
 
-	PhaseRunning           = "Running"
-	PhaseInitialing        = "Initialing"
-	PhaseInstalling        = "Installing"
-	PhaseUninstalling      = "Uninstalling"
-	PhaseWaiting           = "Waiting"
-	PhaseFailed            = "Failed"
-	PhaseDeleting          = "Deleting"
-	PhaseBound             = "Bound"
-	PhaseCompleted         = "Completed"
-	PhaseConfiguring       = "Configuring"
-	PhaseUpgradeing        = "Upgrading"
-	PhaseUpgradeBackoffing = "UpgradeBackoffing"
-	PhaseConnecting        = "Connecting"
-	PhaseCrashing          = "Crashing"
-	PhaseReady             = "Ready"
-	PhaseNotReady          = "NotReady"
-	PhaseInstalled         = "Installed"
-	PhaseUninstalled       = "Uninstalled"
-	PhaseLabel             = "Label"
-	PhaseUnLabel           = "UnLabel"
-	PhaseUninstallNode     = "UninstallNode"
-	PhaseInCompleted       = "InstallCompleted"
-	PhaseUnCompleted       = "UninstallCompleted"
+	PhaseRunning       = "Running"
+	PhaseInitialing    = "Initialing"
+	PhaseInstalling    = "Installing"
+	PhaseUninstalling  = "Uninstalling"
+	PhaseWaiting       = "Waiting"
+	PhaseFailed        = "Failed"
+	PhaseDeleting      = "Deleting"
+	PhaseBound         = "Bound"
+	PhaseCompleted     = "Completed"
+	PhaseConfiguring   = "Configuring"
+	PhaseUpgradeing    = "Upgrading"
+	PhaseReverting     = "Reverting"
+	PhaseConnecting    = "Connecting"
+	PhaseCrashing      = "Crashing"
+	PhaseReady         = "Ready"
+	PhaseNotReady      = "NotReady"
+	PhaseInstalled     = "Installed"
+	PhaseUninstalled   = "Uninstalled"
+	PhaseLabel         = "Label"
+	PhaseUnLabel       = "UnLabel"
+	PhaseUninstallNode = "UninstallNode"
+	PhaseInCompleted   = "InstallCompleted"
+	PhaseUnCompleted   = "UninstallCompleted"
 
 	PkgProvisionFull = "full"
 	PkgProvisionThin = "thin"
@@ -115,10 +120,61 @@ const (
 	ValidNameRegex = `^[a-zA-Z0-9_\-\.]{1,256}$`
 )
 
-var kindMsg map[string]string
-var actionMsg map[string]string
+var (
+	// 已注册的资源类型列表
+	kinds = []string{
+		KindApp,
+		KindAppInstance,
+		KindAudit,
+		KindConfigMap,
+		KindEvent,
+		KindGPU,
+		KindHost,
+		KindJob,
+		KindK8sConfig,
+		KindPkg,
+		KindProject,
+	}
 
-func init() {
+	// 资源复数别名，用于接口url，如：api/<version>/<plural>
+	kindPluralMap = map[string]string{
+		KindApp:         "apps",
+		KindAppInstance: "appinstances",
+		KindAudit:       "audits",
+		KindConfigMap:   "configmaps",
+		KindEvent:       "events",
+		KindGPU:         "gpus",
+		KindHost:        "hosts",
+		KindJob:         "jobs",
+		KindK8sConfig:   "k8sconfig",
+		KindPkg:         "pkgs",
+		KindProject:     "projects",
+	}
+
+	// 资源单数名称
+	kindSingularMap = map[string]string{
+		KindApp:         "app",
+		KindAppInstance: "appinstance",
+		KindAudit:       "audit",
+		KindConfigMap:   "configmap",
+		KindEvent:       "event",
+		KindGPU:         "gpu",
+		KindHost:        "host",
+		KindJob:         "job",
+		KindK8sConfig:   "k8sconfig",
+		KindPkg:         "pkg",
+		KindProject:     "project",
+	}
+
+	// 资源简称，便于命令行使用资源
+	kindShortNamesMap = map[string][]string{
+		KindAppInstance: []string{"ins"},
+		KindConfigMap:   []string{"cm"},
+		KindHost:        []string{"node", "nodes"},
+		KindK8sConfig:   []string{"k8s"},
+	}
+
+	// 资源类型描述
 	kindMsg = map[string]string{
 		KindApp:         "应用",
 		KindAppInstance: "应用实例",
@@ -131,21 +187,31 @@ func init() {
 		KindPkg:         "部署包",
 		KindGPU:         "显卡",
 	}
+
+	// 操作行为描述
 	actionMsg = map[string]string{
-		EventActionUpgrade:        "版本升级",
-		EventActionUpgradeBackoff: "版本回退",
-		EventActionConfigure:      "配置",
-		EventActionConnect:        "连接",
-		EventActionHealthCheck:    "健康检查",
-		EventActionInitial:        "初始化",
-		EventActionInstall:        "安装",
-		EventActionLabel:          "打标签",
-		EventActionUnLabel:        "删除标签",
-		EventActionUninstall:      "卸载",
-		EventActionUninstallNode:  "卸载节点",
-		EventActionInstallNode:    "新增节点",
+		EventActionUpgrade:       "版本升级",
+		EventActionRevert:        "版本回退",
+		EventActionConfigure:     "配置",
+		EventActionConnect:       "连接",
+		EventActionHealthCheck:   "健康检查",
+		EventActionInitial:       "初始化",
+		EventActionInstall:       "安装",
+		EventActionLabel:         "打标签",
+		EventActionUnLabel:       "删除标签",
+		EventActionUninstall:     "卸载",
+		EventActionUninstallNode: "卸载节点",
+		EventActionInstallNode:   "新增节点",
 	}
-}
+
+	// 应用分类描述
+	categoryMsg = map[string]string{
+		AppCategoryAlgorithmPlugin: "算法插件",
+		AppCategoryCustomize:       "业务应用",
+		AppCategoryHostPlugin:      "主机插件",
+		AppCategoryThirdParty:      "基础组件",
+	}
+)
 
 type ValueFrom struct {
 	ConfigMapKeyRef ConfigMapKeyRef
@@ -184,4 +250,63 @@ func GetActionMsg(action string) string {
 		return action
 	}
 	return msg
+}
+
+// GetCategoryMsg 根据应用分类获取其简称
+func GetCategoryMsg(category string) string {
+	msg, ok := categoryMsg[category]
+	if !ok {
+		return category
+	}
+	return msg
+}
+
+// SearchKind 根据字符串查询资源类型
+func SearchKind(keyword string) string {
+	// 根据类型列表查询
+	for _, kind := range kinds {
+		if keyword == kind {
+			return kind
+		}
+	}
+
+	// 根据单数别名查询
+	for kind, singular := range kindSingularMap {
+		if singular == keyword {
+			return kind
+		}
+	}
+
+	// 根据复数别名查询
+	for kind, plural := range kindPluralMap {
+		if plural == keyword {
+			return kind
+		}
+	}
+
+	// 根据简称查询
+	for kind, shortNames := range kindShortNamesMap {
+		for _, shortName := range shortNames {
+			if shortName == keyword {
+				return kind
+			}
+		}
+	}
+	return ""
+}
+
+func GetPlural(kind string) string {
+	plural, ok := kindPluralMap[kind]
+	if ok {
+		return plural
+	}
+	return ""
+}
+
+func GetSingular(kind string) string {
+	singular, ok := kindSingularMap[kind]
+	if ok {
+		return singular
+	}
+	return ""
 }

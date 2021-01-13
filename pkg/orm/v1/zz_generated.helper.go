@@ -20,8 +20,10 @@ func init() {
 		Host:        NewHostRegistry(),
 		Job:         NewJobRegistry(),
 		K8sConfig:   NewK8sConfigRegistry(),
+		Namespace:   NewNamespaceRegistry(),
 		Pkg:         NewPkgRegistry(),
 		Project:     NewProjectRegistry(),
+		Revision:    NewRevisionRegistry(),
 	}
 }
 
@@ -36,8 +38,10 @@ type Helper struct {
 	Host        HostRegistry
 	Job         JobRegistry
 	K8sConfig   K8sConfigRegistry
+	Namespace   NamespaceRegistry
 	Pkg         PkgRegistry
 	Project     ProjectRegistry
+	Revision    RevisionRegistry
 }
 
 func GetHelper() Helper {
@@ -75,11 +79,17 @@ func New(kind string) (core.ApiObject, error) {
 	case core.KindK8sConfig:
 		return NewK8sConfig(), nil
 
+	case core.KindNamespace:
+		return NewNamespace(), nil
+
 	case core.KindPkg:
 		return NewPkg(), nil
 
 	case core.KindProject:
 		return NewProject(), nil
+
+	case core.KindRevision:
+		return NewRevision(), nil
 
 	default:
 		return nil, e.Errorf("unknown kind of %s within v1", kind)

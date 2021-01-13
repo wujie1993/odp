@@ -78,6 +78,61 @@ func (c *AppInstanceController) DeleteAppInstance(ctx *gin.Context) {
 	c.Delete(ctx)
 }
 
+// @summary 获取单个应用实例的所有修订版本
+// @tags AppInstance
+// @produce json
+// @accept json
+// @param namespace path string true "命名空间" default(default)
+// @param name path string true "应用实例名称"
+// @success 200 {object} controller.Response{Data=[]v2.AppInstance}
+// @failure 500 {object} controller.Response
+// @router /api/v2/namespaces/{namespace}/appinstances/{name}/revisions [get]
+func (c *AppInstanceController) GetAppInstanceRevisions(ctx *gin.Context) {
+	c.ListRevisions(ctx)
+}
+
+// @summary 获取单个应用实例的指定修订版本
+// @tags AppInstance
+// @produce json
+// @accept json
+// @param namespace path string true "命名空间" default(default)
+// @param name path string true "应用实例名称"
+// @param revision path integer true "修订版本"
+// @success 200 {object} controller.Response{Data=v2.AppInstance}
+// @failure 500 {object} controller.Response
+// @router /api/v2/namespaces/{namespace}/appinstances/{name}/revisions/{revision} [get]
+func (c *AppInstanceController) GetAppInstanceRevision(ctx *gin.Context) {
+	c.GetRevision(ctx)
+}
+
+// @summary 更新单个应用实例到指定的修订版本
+// @tags AppInstance
+// @produce json
+// @accept json
+// @param namespace path string true "命名空间" default(default)
+// @param name path string true "应用实例名称"
+// @param revision path integer true "修订版本"
+// @success 200 {object} controller.Response{Data=v2.AppInstance}
+// @failure 500 {object} controller.Response
+// @router /api/v2/namespaces/{namespace}/appinstances/{name}/revisions/{revision} [put]
+func (c *AppInstanceController) PutAppInstanceRevision(ctx *gin.Context) {
+	c.PutRevision(ctx)
+}
+
+// @summary 删除单个应用实例的指定修订版本
+// @tags AppInstance
+// @produce json
+// @accept json
+// @param namespace path string true "命名空间" default(default)
+// @param name path string true "应用实例名称"
+// @param revision path integer true "修订版本"
+// @success 200 {object} controller.Response{Data=v2.AppInstance}
+// @failure 500 {object} controller.Response
+// @router /api/v2/namespaces/{namespace}/appinstances/{name}/revisions/{revision} [delete]
+func (c *AppInstanceController) DeleteAppInstanceRevision(ctx *gin.Context) {
+	c.DeleteRevision(ctx)
+}
+
 // 实现了ListFilter的过滤方法
 func (c *AppInstanceController) listFilt(ctx *gin.Context, objs []core.ApiObject) []core.ApiObject {
 	result := []core.ApiObject{}
@@ -96,7 +151,9 @@ func (c *AppInstanceController) listFilt(ctx *gin.Context, objs []core.ApiObject
 }
 
 func NewAppInstanceController() AppInstanceController {
-	return AppInstanceController{
+	c := AppInstanceController{
 		BaseController: controller.NewController(v2.NewAppInstanceRegistry()),
 	}
+	c.SetRevisioner(v2.NewAppInstanceRevision())
+	return c
 }

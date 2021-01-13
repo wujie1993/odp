@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -61,6 +63,9 @@ func loadPlugins(ctx context.Context) {
 
 	appOperator := operators.NewAppOperator()
 	go appOperator.Run(ctx)
+
+	configMapOperator := operators.NewConfigMapOperator()
+	go configMapOperator.Run(ctx)
 
 	jobOperator := operators.NewJobOperator()
 	go jobOperator.Run(ctx)
@@ -138,7 +143,31 @@ func main() {
 
 	log.Printf("[info] start http server listening %s", endPoint)
 
-	server.ListenAndServe()
+	quit := make(chan os.Signal)
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			log.Warn(err)
+			close(quit)
+		}
+	}()
+
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	sig := <-quit
+	switch sig {
+	case os.Interrupt:
+		log.Warnf("received interrupt signal")
+	case syscall.SIGTERM:
+		log.Warnf("received terminal signal")
+	}
+
+	log.Warnf("shutting down server ...")
+	shutdownCtx, _ := context.WithTimeout(ctx, 5*time.Second)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error(err)
+	}
+	log.Warnf("server exited")
 
 	// If you want Graceful Restart, you need a Unix system and download github.com/fvbock/endless
 	//endless.DefaultReadTimeOut = readTimeout

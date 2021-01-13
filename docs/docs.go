@@ -1425,6 +1425,98 @@ var doc = `{
                 }
             }
         },
+        "/api/v1/namespaces": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Namespace"
+                ],
+                "summary": "获取所有命名空间",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v1.Namespace"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Namespace"
+                ],
+                "summary": "创建单个命名空间",
+                "parameters": [
+                    {
+                        "description": "命名空间信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.Namespace"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Namespace"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/namespaces/{namespace}/appinstances": {
             "get": {
                 "consumes": [
@@ -2592,6 +2684,158 @@ var doc = `{
                 }
             }
         },
+        "/api/v1/namespaces/{name}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Namespace"
+                ],
+                "summary": "获取单个命名空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "命名空间名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Namespace"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Namespace"
+                ],
+                "summary": "更新单个命名空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "命名空间名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "命名空间信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.Namespace"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Namespace"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Namespace"
+                ],
+                "summary": "删除单个命名空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "命名空间名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Namespace"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/pkgs": {
             "get": {
                 "consumes": [
@@ -3065,6 +3309,565 @@ var doc = `{
                                     "properties": {
                                         "Data": {
                                             "$ref": "#/definitions/v1.Project"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/revisions": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Revision"
+                ],
+                "summary": "获取所有修订历史",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v1.Revision"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Revision"
+                ],
+                "summary": "创建单个修订历史",
+                "parameters": [
+                    {
+                        "description": "修订历史信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.Revision"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Revision"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/revisions/{name}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Revision"
+                ],
+                "summary": "获取单个修订历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "修订历史名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Revision"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Revision"
+                ],
+                "summary": "更新单个修订历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "修订历史名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "修订历史信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.Revision"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Revision"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Revision"
+                ],
+                "summary": "删除单个修订历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "修订历史名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v1.Revision"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/topology": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Topology"
+                ],
+                "summary": "导出拓扑结构",
+                "parameters": [
+                    {
+                        "enum": [
+                            "appInstance",
+                            "host"
+                        ],
+                        "type": "string",
+                        "description": "资源类别",
+                        "name": "resourceKind",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "default",
+                        "description": "资源命名空间",
+                        "name": "resourceNamespace",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称",
+                        "name": "resourceName",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "mermaid",
+                            "csv"
+                        ],
+                        "type": "string",
+                        "description": "导出格式",
+                        "name": "format",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "下载文件",
+                        "name": "download",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/hosts": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Host"
+                ],
+                "summary": "获取所有主机",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v2.Host"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Host"
+                ],
+                "summary": "创建单个主机",
+                "parameters": [
+                    {
+                        "description": "主机信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v2.Host"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.Host"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/hosts/{name}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Host"
+                ],
+                "summary": "获取单个主机",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "主机名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.Host"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Host"
+                ],
+                "summary": "更新单个主机",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "主机名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "主机信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v2.Host"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.Host"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Host"
+                ],
+                "summary": "删除单个主机",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "主机名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.Host"
                                         }
                                     }
                                 }
@@ -3682,6 +4485,254 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/api/v2/namespaces/{namespace}/appinstances/{name}/revisions": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AppInstance"
+                ],
+                "summary": "获取单个应用实例的所有修订版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "default",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用实例名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v2.AppInstance"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/namespaces/{namespace}/appinstances/{name}/revisions/{revision}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AppInstance"
+                ],
+                "summary": "获取单个应用实例的指定修订版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "default",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用实例名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "修订版本",
+                        "name": "revision",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.AppInstance"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AppInstance"
+                ],
+                "summary": "更新单个应用实例到指定的修订版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "default",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用实例名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "修订版本",
+                        "name": "revision",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.AppInstance"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AppInstance"
+                ],
+                "summary": "删除单个应用实例的指定修订版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "default",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "应用实例名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "修订版本",
+                        "name": "revision",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/controller.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "Data": {
+                                            "$ref": "#/definitions/v2.AppInstance"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -3765,6 +4816,24 @@ var doc = `{
                 },
                 "Phase": {
                     "type": "string"
+                }
+            }
+        },
+        "v1.AdditionalConfigs": {
+            "type": "object",
+            "properties": {
+                "Args": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.AppArgs"
+                    }
+                },
+                "ConfigMapRef": {
+                    "type": "object",
+                    "$ref": "#/definitions/v1.ConfigMapRef"
+                },
+                "Enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3857,6 +4926,12 @@ var doc = `{
                 "ConfigMapRef": {
                     "type": "object",
                     "$ref": "#/definitions/v1.ConfigMapRef"
+                },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3906,15 +4981,32 @@ var doc = `{
                 "ConfigMapRef": {
                     "type": "object",
                     "$ref": "#/definitions/v1.ConfigMapRef"
+                },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.AppInstanceHostAliases"
+                    }
+                }
+            }
+        },
+        "v1.AppInstanceHostAliases": {
+            "type": "object",
+            "properties": {
+                "Hostname": {
+                    "type": "string"
+                },
+                "IP": {
+                    "type": "string"
                 }
             }
         },
         "v1.AppInstanceModule": {
             "type": "object",
             "properties": {
-                "AdditionalConfigMapRef": {
+                "AdditionalConfigs": {
                     "type": "object",
-                    "$ref": "#/definitions/v1.ConfigMapRef"
+                    "$ref": "#/definitions/v1.AdditionalConfigs"
                 },
                 "AppVersion": {
                     "type": "string"
@@ -3928,6 +5020,12 @@ var doc = `{
                 "ConfigMapRef": {
                     "type": "object",
                     "$ref": "#/definitions/v1.ConfigMapRef"
+                },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.AppInstanceHostAliases"
+                    }
                 },
                 "HostRefs": {
                     "type": "array",
@@ -4006,9 +5104,9 @@ var doc = `{
         "v1.AppModule": {
             "type": "object",
             "properties": {
-                "AdditionalConfigMapRef": {
+                "AdditionalConfigs": {
                     "type": "object",
-                    "$ref": "#/definitions/v1.ConfigMapRef"
+                    "$ref": "#/definitions/v1.AdditionalConfigs"
                 },
                 "Args": {
                     "type": "array",
@@ -4023,9 +5121,6 @@ var doc = `{
                 "Desc": {
                     "type": "string"
                 },
-                "EnableAdditionalConfigs": {
-                    "type": "boolean"
-                },
                 "EnableLogging": {
                     "type": "boolean"
                 },
@@ -4035,6 +5130,12 @@ var doc = `{
                 "ExtraVars": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "HostLimits": {
                     "type": "object",
@@ -4082,6 +5183,9 @@ var doc = `{
             "type": "object",
             "properties": {
                 "Category": {
+                    "type": "string"
+                },
+                "Platform": {
                     "type": "string"
                 },
                 "Versions": {
@@ -4245,11 +5349,17 @@ var doc = `{
         "v1.ConfigMapRef": {
             "type": "object",
             "properties": {
+                "Hash": {
+                    "type": "string"
+                },
                 "Name": {
                     "type": "string"
                 },
                 "Namespace": {
                     "type": "string"
+                },
+                "Revision": {
+                    "type": "integer"
                 }
             }
         },
@@ -4733,6 +5843,25 @@ var doc = `{
                 }
             }
         },
+        "v1.Namespace": {
+            "type": "object",
+            "properties": {
+                "ApiVersion": {
+                    "type": "string"
+                },
+                "Kind": {
+                    "type": "string"
+                },
+                "Metadata": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Metadata"
+                },
+                "Status": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Status"
+                }
+            }
+        },
         "v1.OS": {
             "type": "object",
             "properties": {
@@ -4812,6 +5941,12 @@ var doc = `{
                     "type": "object",
                     "$ref": "#/definitions/core.Metadata"
                 },
+                "ReferNamespaces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "Status": {
                     "type": "object",
                     "$ref": "#/definitions/core.Status"
@@ -4843,6 +5978,35 @@ var doc = `{
                 }
             }
         },
+        "v1.Revision": {
+            "type": "object",
+            "properties": {
+                "ApiVersion": {
+                    "type": "string"
+                },
+                "Data": {
+                    "type": "string"
+                },
+                "Kind": {
+                    "type": "string"
+                },
+                "Metadata": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Metadata"
+                },
+                "ResourceRef": {
+                    "type": "object",
+                    "$ref": "#/definitions/v1.ResourceRef"
+                },
+                "Revision": {
+                    "type": "integer"
+                },
+                "Status": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Status"
+                }
+            }
+        },
         "v1.SdkPlugin": {
             "type": "object",
             "properties": {
@@ -4865,6 +6029,24 @@ var doc = `{
                 },
                 "HostRef": {
                     "type": "string"
+                }
+            }
+        },
+        "v2.AdditionalConfigs": {
+            "type": "object",
+            "properties": {
+                "Args": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v2.AppInstanceArgs"
+                    }
+                },
+                "ConfigMapRef": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.ConfigMapRef"
+                },
+                "Enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -4962,6 +6144,23 @@ var doc = `{
                 "ConfigMapRef": {
                     "type": "object",
                     "$ref": "#/definitions/v2.ConfigMapRef"
+                },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v2.AppInstanceHostAliases"
+                    }
+                }
+            }
+        },
+        "v2.AppInstanceHostAliases": {
+            "type": "object",
+            "properties": {
+                "Hostname": {
+                    "type": "string"
+                },
+                "IP": {
+                    "type": "string"
                 }
             }
         },
@@ -4985,9 +6184,9 @@ var doc = `{
         "v2.AppInstanceModuleReplica": {
             "type": "object",
             "properties": {
-                "AdditionalConfigMapRef": {
+                "AdditionalConfigs": {
                     "type": "object",
-                    "$ref": "#/definitions/v2.ConfigMapRef"
+                    "$ref": "#/definitions/v2.AdditionalConfigs"
                 },
                 "Args": {
                     "type": "array",
@@ -4999,6 +6198,12 @@ var doc = `{
                     "type": "object",
                     "$ref": "#/definitions/v2.ConfigMapRef"
                 },
+                "HostAliases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v2.AppInstanceHostAliases"
+                    }
+                },
                 "HostRefs": {
                     "type": "array",
                     "items": {
@@ -5006,6 +6211,17 @@ var doc = `{
                     }
                 },
                 "Notes": {
+                    "type": "string"
+                }
+            }
+        },
+        "v2.AppInstanceRef": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Namespace": {
                     "type": "string"
                 }
             }
@@ -5053,9 +6269,23 @@ var doc = `{
                 }
             }
         },
+        "v2.CPU": {
+            "type": "object",
+            "properties": {
+                "Cores": {
+                    "type": "integer"
+                },
+                "Model": {
+                    "type": "string"
+                }
+            }
+        },
         "v2.ConfigMapRef": {
             "type": "object",
             "properties": {
+                "Hash": {
+                    "type": "string"
+                },
                 "Key": {
                     "type": "string"
                 },
@@ -5064,6 +6294,136 @@ var doc = `{
                 },
                 "Namespace": {
                     "type": "string"
+                },
+                "Revision": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v2.Disk": {
+            "type": "object",
+            "properties": {
+                "Size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v2.GPUInfo": {
+            "type": "object",
+            "properties": {
+                "ID": {
+                    "type": "integer"
+                },
+                "Memory": {
+                    "type": "integer"
+                },
+                "Model": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "UUID": {
+                    "type": "string"
+                }
+            }
+        },
+        "v2.Host": {
+            "type": "object",
+            "properties": {
+                "ApiVersion": {
+                    "type": "string"
+                },
+                "Info": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.HostInfo"
+                },
+                "Kind": {
+                    "type": "string"
+                },
+                "Metadata": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Metadata"
+                },
+                "Spec": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.HostSpec"
+                },
+                "Status": {
+                    "type": "object",
+                    "$ref": "#/definitions/core.Status"
+                }
+            }
+        },
+        "v2.HostInfo": {
+            "type": "object",
+            "properties": {
+                "CPU": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.CPU"
+                },
+                "Disk": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.Disk"
+                },
+                "GPUs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v2.GPUInfo"
+                    }
+                },
+                "Memory": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.Memory"
+                },
+                "OS": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.OS"
+                },
+                "Plugins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v2.HostPlugin"
+                    }
+                }
+            }
+        },
+        "v2.HostPlugin": {
+            "type": "object",
+            "properties": {
+                "AppInstanceRef": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.AppInstanceRef"
+                },
+                "AppRef": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.AppRef"
+                }
+            }
+        },
+        "v2.HostSSH": {
+            "type": "object",
+            "properties": {
+                "Host": {
+                    "type": "string"
+                },
+                "Password": {
+                    "type": "string"
+                },
+                "Port": {
+                    "type": "integer"
+                },
+                "User": {
+                    "type": "string"
+                }
+            }
+        },
+        "v2.HostSpec": {
+            "type": "object",
+            "properties": {
+                "SSH": {
+                    "type": "object",
+                    "$ref": "#/definitions/v2.HostSSH"
                 }
             }
         },
@@ -5183,6 +6543,28 @@ var doc = `{
                 },
                 "TimeoutSeconds": {
                     "type": "integer"
+                }
+            }
+        },
+        "v2.Memory": {
+            "type": "object",
+            "properties": {
+                "Model": {
+                    "type": "string"
+                },
+                "Size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v2.OS": {
+            "type": "object",
+            "properties": {
+                "Kernel": {
+                    "type": "string"
+                },
+                "Release": {
+                    "type": "string"
                 }
             }
         },

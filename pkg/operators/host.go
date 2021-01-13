@@ -22,7 +22,7 @@ type HostOperator struct {
 	BaseOperator
 }
 
-func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
+func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error {
 	host := obj.(*v1.Host)
 	log.Infof("%s '%s' is %s", host.Kind, host.GetKey(), host.Status.Phase)
 
@@ -31,7 +31,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		// 处于等待中状态的主机会将状态更新为连接中
 		if _, err := c.helper.V1.Host.UpdateStatusPhase(host.Metadata.Namespace, host.Metadata.Name, core.PhaseConnecting); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 	case core.PhaseConnecting:
 		// 处于连接中状态的主机会首先尝试ssh连接并获取主机状态，并将状态更新为初始化中
@@ -47,7 +47,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 			log.Errorf("failed to connect host %s: %s", host.GetKey(), err)
 
 			c.failback(host, core.EventActionConnect, err.Error(), "")
-			return
+			return err
 		}
 
 		// 将主机状态置为初始化中
@@ -75,7 +75,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 			if err != nil {
 				log.Error(err)
 				c.failback(host, core.EventActionConnect, err.Error(), "")
-				return
+				return err
 			}
 			if gpuObj == nil {
 				// 当GPU资源不存在时，创建GPU资源
@@ -86,7 +86,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 				if _, err := c.helper.V1.GPU.Create(context.TODO(), gpu); err != nil {
 					log.Error(err)
 					c.failback(host, core.EventActionConnect, err.Error(), "")
-					return
+					return err
 				}
 			} else {
 				// 当GPU资源存在时，更新GPU资源
@@ -96,7 +96,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 				if _, err := c.helper.V1.GPU.Update(context.TODO(), gpu); err != nil {
 					log.Error(err)
 					c.failback(host, core.EventActionConnect, err.Error(), "")
-					return
+					return err
 				}
 			}
 		}
@@ -109,7 +109,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		host.Status.Phase = core.PhaseInitialing
 		if _, err := c.helper.V1.Host.Update(context.TODO(), host, core.WithStatus()); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 记录事件完成
@@ -121,8 +121,8 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 			Phase:      core.PhaseCompleted,
 		}); err != nil {
 			log.Error(err)
+			return err
 		}
-		return
 	case core.PhaseInitialing:
 		// 处于初始化状态时，创建用于初始化主机环境的任务，并在任务执行完成时将主机状态置为已就绪
 
@@ -139,8 +139,9 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 					// 如果侦听的任务被删除，移除关联的初始化任务，重新进行初始化
 					if _, err := c.helper.V1.Host.UpdateStatusPhase(host.Metadata.Namespace, host.Metadata.Name, core.PhaseWaiting); err != nil {
 						log.Error(err)
+						return err
 					}
-					return
+					return nil
 				case db.KVActionTypeSet:
 					switch job.Status.Phase {
 					case core.PhaseCompleted:
@@ -160,18 +161,19 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 							Phase:      core.PhaseCompleted,
 						}); err != nil {
 							log.Error(err)
+							return err
 						}
-						return
+						return nil
 					case core.PhaseFailed:
 						c.failback(host, core.EventActionInitial, "", job.Metadata.Name)
-						return
+						return nil
 					case core.PhaseRunning:
 					default:
 						log.Warnf("unknown status '%s' of job '%s'", job.Status.Phase, job.GetKey())
 					}
 				}
 			}
-			return
+			return nil
 		}
 
 		// 对于没有初始化任务的主机，创建对应的任务进行初始化并做关联
@@ -180,17 +182,17 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		inventoryTpl, err := template.New("inventory").Parse(ansible.ANSIBLE_INVENTORY_HOST_INIT_TPL)
 		if err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 		var inventoryBuf bytes.Buffer
 		if err := inventoryTpl.Execute(&inventoryBuf, []*v1.Host{host}); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 		commonInventoryStr, err := ansible.RenderCommonInventory()
 		if err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 创建任务对应的配置
@@ -201,7 +203,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		configMap.Data["inventory"] = inventoryBuf.String()
 		if _, err := c.helper.V1.ConfigMap.Create(context.TODO(), configMap); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 生成playbook
@@ -212,7 +214,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		playbookStr, err := ansible.RenderPlaybook([]ansible.Playbook{playbook})
 		if err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 创建任务
@@ -238,14 +240,14 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 		job.Spec.FailureThreshold = 3
 		if _, err := c.helper.V1.Job.Create(context.TODO(), job); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 将主机与任务关联
 		host.Metadata.Annotations[core.AnnotationJobPrefix+ansible.ANSIBLE_ROLE_HOST_INIT] = job.Metadata.Name
 		if _, err := c.helper.V1.Host.Update(context.TODO(), host); err != nil {
 			log.Error(err)
-			return
+			return err
 		}
 
 		// 记录事件开始
@@ -259,63 +261,50 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) {
 			log.Error(err)
 		}
 	case core.PhaseDeleting:
-		// 如果资源正在删除中，则跳过
-		if _, ok := c.deletings.Get(host.GetKey()); ok {
-			return
+		return c.handleDeleting(ctx, obj)
+	}
+	return nil
+}
+
+func (o HostOperator) finalizeHost(ctx context.Context, obj core.ApiObject) error {
+	host := obj.(*v1.Host)
+
+	// 每次只处理一项Finalizer
+	switch host.Metadata.Finalizers[0] {
+	case core.FinalizerCleanRefGPU:
+		// 同步删除关联的GPU
+		gpuList, err := o.helper.V1.GPU.List(context.TODO(), "")
+		if err != nil {
+			log.Error(err)
+			return err
 		}
-		c.deletings.Set(host.GetKey(), host.SpecHash())
-		defer c.deletings.Unset(host.GetKey())
-
-		if len(host.Metadata.Finalizers) > 0 {
-			// 每次只处理一项Finalizer
-			switch host.Metadata.Finalizers[0] {
-			case core.FinalizerCleanRefGPU:
-				// 同步删除关联的GPU
-				gpuList, err := c.helper.V1.GPU.List(context.TODO(), "")
-				if err != nil {
+		for _, gpuObj := range gpuList {
+			gpu := gpuObj.(*v1.GPU)
+			if gpu.Spec.HostRef == host.Metadata.Name {
+				if _, err := o.helper.V1.GPU.Delete(context.TODO(), "", gpu.Metadata.Name, core.WithSync()); err != nil {
 					log.Error(err)
-					return
-				}
-				for _, gpuObj := range gpuList {
-					gpu := gpuObj.(*v1.GPU)
-					if gpu.Spec.HostRef == host.Metadata.Name {
-						if _, err := c.helper.V1.GPU.Delete(context.TODO(), "", gpu.Metadata.Name, core.WithSync()); err != nil {
-							log.Error(err)
-							return
-						}
-					}
-				}
-			case core.FinalizerCleanRefEvent:
-				// 同步删除关联的事件
-				eventList, err := c.helper.V1.Event.List(context.TODO(), "")
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				for _, eventObj := range eventList {
-					event := eventObj.(*v1.Event)
-					if event.Spec.ResourceRef.Kind == core.KindHost && event.Spec.ResourceRef.Name == host.Metadata.Name {
-						if _, err := c.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
-							log.Error(err)
-							return
-						}
-					}
+					return err
 				}
 			}
-
-			c.deletings.Unset(host.GetKey())
-			host.Metadata.Finalizers = host.Metadata.Finalizers[1:]
-			if _, err := c.helper.V1.Host.Update(context.TODO(), host, core.WithFinalizer()); err != nil {
-				log.Error(err)
-				return
-			}
-		} else {
-			if _, err := c.helper.V1.Host.Delete(context.TODO(), "", host.Metadata.Name); err != nil {
-				log.Error(err)
-				return
+		}
+	case core.FinalizerCleanRefEvent:
+		// 同步删除关联的事件
+		eventList, err := o.helper.V1.Event.List(context.TODO(), "")
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		for _, eventObj := range eventList {
+			event := eventObj.(*v1.Event)
+			if event.Spec.ResourceRef.Kind == core.KindHost && event.Spec.ResourceRef.Name == host.Metadata.Name {
+				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
+					log.Error(err)
+					return err
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func (o *HostOperator) reconcileHost(ctx context.Context, obj core.ApiObject) {
@@ -393,7 +382,7 @@ func (o *HostOperator) reconcileHost(ctx context.Context, obj core.ApiObject) {
 		}
 	}
 	// 更新主机信息
-	if _, err := o.helper.V1.Host.Update(context.TODO(), host, core.WhenSpecChanged()); err != nil {
+	if _, err := o.helper.V1.Host.Update(context.TODO(), host, core.WhenSpecChanged(), core.WithStatus()); err != nil {
 		log.Error(err)
 		return
 	}
@@ -435,6 +424,7 @@ func NewHostOperator() *HostOperator {
 		BaseOperator: NewBaseOperator(v1.NewHostRegistry()),
 	}
 	o.SetHandleFunc(o.handleHost)
+	o.SetFinalizeFunc(o.finalizeHost)
 	o.SetReconcileFunc(o.reconcileHost, 30)
 	return o
 }

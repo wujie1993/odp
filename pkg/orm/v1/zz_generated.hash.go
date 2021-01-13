@@ -53,12 +53,22 @@ func (obj K8sConfig) Sha256() string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
+func (obj Namespace) Sha256() string {
+	data, _ := json.Marshal(obj)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
 func (obj Pkg) Sha256() string {
 	data, _ := json.Marshal(obj)
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
 func (obj Project) Sha256() string {
+	data, _ := json.Marshal(obj)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func (obj Revision) Sha256() string {
 	data, _ := json.Marshal(obj)
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }

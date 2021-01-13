@@ -79,12 +79,6 @@ func (r EventRegistry) Record(event *Event) error {
 	return nil
 }
 
-func eventPreCreate(obj core.ApiObject) error {
-	event := obj.(*Event)
-	event.Metadata.Finalizers = []string{core.FinalizerCleanRefJob}
-	return nil
-}
-
 func NewEvent() *Event {
 	event := new(Event)
 	event.Init(ApiVersion, core.KindEvent)
@@ -95,6 +89,8 @@ func NewEventRegistry() EventRegistry {
 	r := EventRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindEvent), false),
 	}
-	r.SetPreCreateHook(eventPreCreate)
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefJob,
+	})
 	return r
 }

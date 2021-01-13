@@ -18,6 +18,7 @@ func init() {
 		"data_prefix",
 		"logs_prefix",
 		"purge_data",
+		"enable_logging",
 	}
 }
 

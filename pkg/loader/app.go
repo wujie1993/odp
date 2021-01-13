@@ -47,26 +47,28 @@ type LivenessProbe struct {
 }
 
 type Global struct {
-	Args    []Arg    `yaml:"args"`
-	Configs []string `yaml:"configs"`
+	Args        []Arg    `yaml:"args"`
+	Configs     []string `yaml:"configs"`
+	HostAliases []string `yaml:"host_aliases"`
 }
 
 type Module struct {
-	Name                    string                 `yaml:"name"`
-	Desc                    string                 `yaml:"desc"`
-	SkipUpgrade             bool                   `yaml:"skip_upgrade"`
-	Notes                   string                 `yaml:"notes"`
-	Args                    []Arg                  `yaml:"args"`
-	Configs                 []string               `yaml:"configs"`
-	Required                bool                   `yaml:"required"`
-	EnableAdditionalConfigs bool                   `yaml:"enable_additional_configs"`
-	EnableLogging           bool                   `yaml:"enable_logging"`
-	EnablePurgeData         bool                   `yaml:"enable_purge_data"`
-	Replication             bool                   `yaml:"replication"`
-	Resources               Resources              `yaml:"resources"`
-	HostLimits              HostLimits             `yaml:"host_limits"`
-	IncludeRoles            []string               `yaml:"include_roles"`
-	ExtraVars               map[string]interface{} `yaml:"extra_vars"`
+	Name              string                 `yaml:"name"`
+	Desc              string                 `yaml:"desc"`
+	SkipUpgrade       bool                   `yaml:"skip_upgrade"`
+	Notes             string                 `yaml:"notes"`
+	Args              []Arg                  `yaml:"args"`
+	Configs           []string               `yaml:"configs"`
+	Required          bool                   `yaml:"required"`
+	EnableLogging     bool                   `yaml:"enable_logging"`
+	EnablePurgeData   bool                   `yaml:"enable_purge_data"`
+	Replication       bool                   `yaml:"replication"`
+	Resources         Resources              `yaml:"resources"`
+	HostLimits        HostLimits             `yaml:"host_limits"`
+	IncludeRoles      []string               `yaml:"include_roles"`
+	ExtraVars         map[string]interface{} `yaml:"extra_vars"`
+	HostAliases       []string               `yaml:"host_aliases"`
+	AdditionalConfigs v1.AdditionalConfigs   `yaml:"additional_configs"`
 }
 
 type Resources struct {
@@ -136,7 +138,7 @@ func LoadApps(categories Categories, path string) error {
 	}
 	helper := orm.GetHelper()
 
-	// 获取现有的app列表，并将其中的自定义app可用性先置为false，在后续遍历pkg的时候再将匹配到的app可用性置为true
+	// 获取现有的app列表，并禁用其中的自定义app，在后续遍历pkg的时候再将匹配到的app启用
 	appObjs, err := helper.V1.App.List(context.TODO(), core.DefaultNamespace)
 	if err != nil {
 		log.Error(err)
@@ -187,6 +189,28 @@ func LoadApps(categories Categories, path string) error {
 					Required:   arg.Required,
 					Modifiable: arg.Modifiable,
 				})
+			}
+
+			// 填充自定义配置模块参数
+			additional_configmap_args := []v1.AppArgs{}
+			for _, arg := range module.AdditionalConfigs.Args {
+				additional_configmap_args = append(additional_configmap_args, v1.AppArgs{
+					Name:      arg.Name,
+					ShortName: arg.ShortName,
+					Desc:      arg.Desc,
+					Type:      arg.Type,
+					Format:    arg.Format,
+					Enum:      arg.Enum,
+					Default:   arg.Default,
+					Readonly:  arg.Readonly,
+					HostLimits: v1.HostLimits{
+						Max: arg.HostLimits.Max,
+						Min: arg.HostLimits.Min,
+					},
+					Required:   arg.Required,
+					Modifiable: arg.Modifiable,
+				})
+
 			}
 
 			// 填充应用模块配置文件
@@ -245,15 +269,20 @@ func LoadApps(categories Categories, path string) error {
 					AlgorithmPlugin:               module.Resources.AlgorithPlugin,
 					SupportAlgorithmPluginsRegexp: module.Resources.SupportAlgorithmPluginsRegexp,
 				},
-				IncludeRoles:            module.IncludeRoles,
-				Required:                module.Required,
-				EnableAdditionalConfigs: module.EnableAdditionalConfigs,
-				EnableLogging:           module.EnableLogging,
-				EnablePurgeData:         module.EnablePurgeData,
-				Replication:             module.Replication,
-				Args:                    args,
-				ConfigMapRef:            configMapRef,
-				ExtraVars:               extraVars,
+				IncludeRoles:    module.IncludeRoles,
+				Required:        module.Required,
+				EnableLogging:   module.EnableLogging,
+				EnablePurgeData: module.EnablePurgeData,
+				Replication:     module.Replication,
+				Args:            args,
+				ConfigMapRef:    configMapRef,
+				ExtraVars:       extraVars,
+				HostAliases:     module.HostAliases[:],
+				AdditionalConfigs: v1.AdditionalConfigs{
+					Enabled:      module.AdditionalConfigs.Enabled,
+					ConfigMapRef: configMapRef,
+					Args:         additional_configmap_args,
+				},
 			})
 		}
 
@@ -329,6 +358,7 @@ func LoadApps(categories Categories, path string) error {
 			Global: v1.AppGlobal{
 				Args:         globalArgs,
 				ConfigMapRef: globalConfigMapRef,
+				HostAliases:  app.Global.HostAliases[:],
 			},
 		}
 
@@ -338,6 +368,9 @@ func LoadApps(categories Categories, path string) error {
 		for _, appObj := range appObjs {
 			oriApp := appObj.(*v1.App)
 			if oriApp.Metadata.Name == app.Name {
+				oriApp.Spec.Category = app.Category
+				oriApp.Spec.Platform = app.Platform
+
 				// 用于标记应用版本是否已存在
 				versionAppExist := false
 
@@ -377,6 +410,7 @@ func LoadApps(categories Categories, path string) error {
 				newApp.Metadata.Annotations[core.AnnotationAlgorithmPluginPrefix+"type"] = algorithmPluginType
 			}
 			newApp.Spec.Category = app.Category
+			newApp.Spec.Category = app.Platform
 			newApp.Spec.Versions = append(newApp.Spec.Versions, versionApp)
 
 			if _, err := helper.V1.App.Create(context.TODO(), newApp); err != nil {
@@ -413,7 +447,7 @@ func LoadApps(categories Categories, path string) error {
 		if !categories.contains(app.Spec.Category) || appsHash[app.Metadata.Name] == app.SpecHash() {
 			continue
 		}
-		if _, err := helper.V1.App.Update(context.TODO(), app); err != nil {
+		if _, err := helper.V1.App.Update(context.TODO(), app, core.WhenSpecChanged()); err != nil {
 			log.Error(err)
 			return err
 		}

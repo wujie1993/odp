@@ -16,6 +16,7 @@ type App struct {
 
 type AppSpec struct {
 	Category string
+	Platform string
 	Versions []AppVersion
 }
 
@@ -38,27 +39,34 @@ type AppVersion struct {
 }
 
 type AppModule struct {
-	Name                    string
-	Desc                    string
-	SkipUpgrade             bool
-	Required                bool
-	Notes                   string
-	Replication             bool
-	HostLimits              HostLimits
-	IncludeRoles            []string
-	Args                    []AppArgs
-	ConfigMapRef            ConfigMapRef
-	AdditionalConfigMapRef  ConfigMapRef
-	EnableAdditionalConfigs bool
-	EnableLogging           bool
-	EnablePurgeData         bool
-	ExtraVars               map[string]interface{}
-	Resources               Resources
+	Name              string
+	Desc              string
+	SkipUpgrade       bool
+	Required          bool
+	Notes             string
+	Replication       bool
+	HostLimits        HostLimits
+	IncludeRoles      []string
+	Args              []AppArgs
+	ConfigMapRef      ConfigMapRef
+	AdditionalConfigs AdditionalConfigs
+	EnableLogging     bool
+	EnablePurgeData   bool
+	ExtraVars         map[string]interface{}
+	Resources         Resources
+	HostAliases       []string
+}
+
+type AdditionalConfigs struct {
+	Enabled      bool
+	ConfigMapRef ConfigMapRef
+	Args         []AppArgs
 }
 
 type AppGlobal struct {
 	Args         []AppArgs
 	ConfigMapRef ConfigMapRef
+	HostAliases  []string
 }
 
 type HostLimits struct {
@@ -98,6 +106,15 @@ func (obj App) SpecHash() string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
+func (obj App) VersionEnabled(version string) bool {
+	for _, appVersion := range obj.Spec.Versions {
+		if appVersion.Version == version {
+			return appVersion.Enabled
+		}
+	}
+	return false
+}
+
 func (obj App) GetVersion(version string) (AppVersion, bool) {
 	for _, appVersion := range obj.Spec.Versions {
 		if appVersion.Version == version {
@@ -124,6 +141,7 @@ func (obj AppVersion) GetModule(moduleName string) (AppModule, bool) {
 	return AppModule{}, false
 }
 
+// +namespaced=true
 type AppRegistry struct {
 	registry.Registry
 }
@@ -144,12 +162,6 @@ func appMutate(obj core.ApiObject) error {
 	return nil
 }
 
-func appPreCreate(obj core.ApiObject) error {
-	app := obj.(*App)
-	app.Metadata.Finalizers = []string{core.FinalizerCleanRefEvent, core.FinalizerCleanRefConfigMap}
-	return nil
-}
-
 func NewApp() *App {
 	app := new(App)
 	app.Init(ApiVersion, core.KindApp)
@@ -161,7 +173,10 @@ func NewAppRegistry() AppRegistry {
 	app := AppRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindApp), true),
 	}
+	app.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefEvent,
+		core.FinalizerCleanRefConfigMap,
+	})
 	app.SetMutateHook(appMutate)
-	app.SetPreCreateHook(appPreCreate)
 	return app
 }

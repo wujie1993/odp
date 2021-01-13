@@ -30,3 +30,15 @@ func (m *Metadata) Init() {
 func (m Metadata) CopyTo(dest *Metadata) {
 	DeepCopy(&m, &dest)
 }
+
+func (m Metadata) GetKey(kind string, namespaced bool) string {
+	var key string
+	if namespaced {
+		if m.Namespace != "" {
+			key += "/namespaces/" + m.Namespace
+		} else {
+			key += "/namespaces/" + DefaultNamespace
+		}
+	}
+	return key + "/" + GetPlural(kind) + "/" + m.Name
+}
