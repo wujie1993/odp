@@ -1,6 +1,9 @@
 # Waves
 
+![Go](https://github.com/wujie1993/waves/workflows/Go/badge.svg?branch=main)
+
 Waves is an application deployment platform, mainly used for offline fast delivery of applications. Its design is inspired by [kubernetes](https://github.com/kubernetes/kubernetes), uses a declarative interface to manage resources and provides simple command line management tools.
+
 ## Dependency
 
 - golang 1.13
