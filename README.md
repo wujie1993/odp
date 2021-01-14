@@ -17,12 +17,8 @@ yum install -y ansible python-pip
 pip install mitogen
 
 // install swag
-cd $GOPATH && git clone https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag
-cd $GOPATH/src/github.com/swaggo/swag && git checkout 2b0d62a4e3c79d3f12c56ae339f16734b22beb64
+git clone -b v1.6.7 https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag
 go install github.com/swaggo/swag/cmd/swag
-
-// 安装go-bindata
-cd $GOPATH && go get -u github.com/go-bindata/go-bindata/...
 ```
 
 ## Build
