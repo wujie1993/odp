@@ -2,9 +2,9 @@ name: Go
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main,ci ]
   pull_request:
-    branches: [ main ]
+    branches: [ main,ci ]
 
 jobs:
 
@@ -17,9 +17,20 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.13
+   
+    - name: Show go envs
+      run: go env
+   
+    - name: Install swag
+      run: git clone -b v1.6.7 https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag && go install github.com/swaggo/swag/cmd/swag
+      env:
+        GOPATH: /home/runner/go
+   
+    - name: Get packages
+      run: go get -v ./...
 
     - name: Build
-      run: go build -v ./...
+      run: make
 
     #- name: Test
     #  run: go test -v ./...
