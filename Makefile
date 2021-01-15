@@ -66,7 +66,6 @@ gen: gen-orm gen-client
 
 # 运行服务端
 run: gen doc
-	sh scripts/asset/bindata.sh
 	go run main.go
 
 # 打包项目构建后的产物，包括客户端与服务端以及配置文件

@@ -1,0 +1,13 @@
+---
+ApiVersion: v2
+Kind: host
+Metadata:
+  Annotations:
+    ShortName: host-test
+  Name: host-192.168.21.33
+Spec:
+  SSH:
+    Host: 192.168.21.33
+    Password: "******"
+    Port: 22
+    User: root
