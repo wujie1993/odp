@@ -23,6 +23,8 @@ jobs:
    
     - name: Install swag
       run: git clone -b v1.6.7 https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag && go install github.com/swaggo/swag/cmd/swag
+      env:
+        GOPATH: /home/runner/go
    
     - name: Get packages
       run: go get -v ./...
