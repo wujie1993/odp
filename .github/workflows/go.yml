@@ -46,5 +46,8 @@ jobs:
       with:
         go-version: 1.13
     
+    - name: Get packages
+      run: go get -v ./...
+
     - name: Test
-      run: go test -v ./... -ldflags "-X '$(module)/tests.EtcdEndpoint=etcd:2379'"
+      run: go test -v ./... -ldflags "-X 'github.com/wujie1993/waves/tests.EtcdEndpoint=etcd:2379'"
