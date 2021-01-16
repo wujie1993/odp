@@ -38,6 +38,10 @@ jobs:
         image: quay.io/coreos/etcd:v3.3.19
         ports:
         - 2379:2379
+        options: >-
+          /usr/local/bin/etcd
+          --listen-client-urls http://0.0.0.0:2379 
+          --advertise-client-urls http://0.0.0.0:2379
     steps:
     - uses: actions/checkout@v2
 
