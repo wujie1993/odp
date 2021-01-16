@@ -9,12 +9,19 @@ import (
 	"github.com/wujie1993/waves/pkg/setting"
 )
 
-const (
-	ServiceEndpoint = "http://localhost:8000/deployer"
-	EtcdEndpoint    = "localhost:2379"
+var (
+	ServiceEndpoint string
+	EtcdEndpoint    string
 )
 
 func init() {
+	if ServiceEndpoint == "" {
+		ServiceEndpoint = "http://localhost:8000/deployer"
+	}
+	if EtcdEndpoint == "" {
+		EtcdEndpoint = "localhost:2379"
+	}
+
 	initLog()
 	initDB()
 }
@@ -31,7 +38,7 @@ func initLog() {
 
 func initDB() {
 	setting.EtcdSetting = &setting.Etcd{
-		Endpoints: []string{"localhost:2379"},
+		Endpoints: []string{EtcdEndpoint},
 	}
 	db.InitKV()
 }
