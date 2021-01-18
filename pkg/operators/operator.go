@@ -101,7 +101,7 @@ func (o BaseOperator) runReconcile(ctx context.Context, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debugf("%+v reconcile stopped", o.registry.GVK)
+			log.Debugf("%+v reconcile stopped", o.registry.GVK())
 			return
 		default:
 			objs, err := o.registry.List(context.TODO(), o.namespace)
@@ -130,7 +130,7 @@ func (o BaseOperator) runHandle(ctx context.Context, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debugf("%+v handle stopped", o.registry.GVK)
+			log.Debugf("%+v handle stopped", o.registry.GVK())
 			return
 		case objAction, ok := <-watcher:
 			if !ok {

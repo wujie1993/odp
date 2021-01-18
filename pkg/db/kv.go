@@ -222,6 +222,10 @@ func (c *EtcdClient) List(key string, withPrefix bool) (map[string]string, error
 }
 
 func (c *EtcdClient) Watch(ctx context.Context, key string, withPrefix bool) <-chan KVAction {
+	if _, err := c.client.Dial(c.client.Endpoints()[0]); err != nil {
+		return nil
+	}
+
 	var kvsWatcher clientv3.WatchChan
 	if withPrefix {
 		kvsWatcher = c.client.Watch(ctx, key, clientv3.WithPrefix(), clientv3.WithPrevKV())

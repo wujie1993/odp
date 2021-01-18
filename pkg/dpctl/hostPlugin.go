@@ -156,7 +156,7 @@ func (c HostPluginClient) Uninstall(hostName string, pluginName string, force bo
 		return err
 	}
 	if !force {
-		if appInstance.Status.Phase != core.PhaseInstalled || appInstance.Status.Phase != core.PhaseFailed {
+		if appInstance.Status.Phase != core.PhaseInstalled && appInstance.Status.Phase != core.PhaseFailed {
 			err := e.Errorf("host plugin %s is %s", pluginName, appInstance.Status.Phase)
 			log.Error(err)
 			return err

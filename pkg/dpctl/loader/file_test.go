@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetHosts(t *testing.T) {
-	objs, err := loader.LoadObjsByLocalPath("/home/viva/Projects/pcitech/devops/web-deploy/tests/hosts.yaml")
+	objs, err := loader.LoadObjsByLocalPath("../../../tests/host-test.yaml")
 	if err != nil {
 		t.Error(err)
 		return

@@ -2,22 +2,18 @@ package db_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/wujie1993/waves/pkg/db"
-	"github.com/wujie1993/waves/pkg/setting"
+	_ "github.com/wujie1993/waves/tests"
 )
 
-func init() {
-	setting.EtcdSetting = &setting.Etcd{
-		Endpoints: []string{"localhost:2379"},
-	}
-	db.InitKV()
-}
+const RegistryPrefix = "/registry-test"
 
 func TestCRUD(t *testing.T) {
-	key := "/prophet/host/host1"
+	key := RegistryPrefix + "/host/host1"
 	value := "{\"name\":\"host1\",\"address\":\"192.168.1.1\"}"
 
 	// 写入
@@ -40,7 +36,7 @@ func TestCRUD(t *testing.T) {
 	}
 
 	// 列举
-	if result, err := db.KV.List("/prophet/", true); err != nil {
+	if result, err := db.KV.List(RegistryPrefix+"/", true); err != nil {
 		t.Fatal(err)
 	} else if result[key] != value {
 		t.Fatal("list result incorrect")
@@ -63,46 +59,65 @@ func TestCRUD(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	watcher := db.KV.Watch(ctx, "/prophet", true)
+	watcher := db.KV.Watch(ctx, RegistryPrefix, true)
+	received := false
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
-		for item := range watcher {
-			t.Log(item)
+		defer wg.Done()
+		if watcher == nil {
+			return
+		}
+		for {
+			select {
+			case item, ok := <-watcher:
+				if !ok {
+					return
+				}
+				t.Log(item)
+				received = true
+			}
 		}
 	}()
 	go func() {
+		defer wg.Done()
 		TestCRUD(t)
 	}()
-	time.Sleep(5 * time.Second)
+	wg.Wait()
+	if !received {
+		t.Fatal("watch channel has nothing received")
+	}
 }
 
 func TestRange(t *testing.T) {
 	dataset := make(map[string]string)
-	dataset["/audits/1587092947"] = "1"
-	dataset["/audits/1587092952"] = "2"
-	dataset["/audits/1587092960"] = "3"
+	dataset[RegistryPrefix+"/audits/1587092947"] = "1"
+	dataset[RegistryPrefix+"/audits/1587092952"] = "2"
+	dataset[RegistryPrefix+"/audits/1587092960"] = "3"
 
 	for k, v := range dataset {
 		if err := db.KV.Set(k, v); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	}
 
-	result, err := db.KV.Range("/audits/1587092947", "/audits/1587092952")
+	result, err := db.KV.Range(RegistryPrefix+"/audits/1587092947", RegistryPrefix+"/audits/1587092952")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+		return
 	}
 
 	t.Logf("%+v", result)
 }
 
 func TestMutex(t *testing.T) {
-	ctx := context.Background()
-	if err := db.KV.Lock(ctx, "/lock/lock1"); err != nil {
-		t.Error(err)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := db.KV.Lock(ctx, RegistryPrefix+"/lock/lock1"); err != nil {
+		t.Fatal(err)
 	}
-	if err := db.KV.Unlock(ctx, "/lock/lock1"); err != nil {
-		t.Error(err)
+	if err := db.KV.Unlock(ctx, RegistryPrefix+"/lock/lock1"); err != nil {
+		t.Fatal(err)
 	}
 }
