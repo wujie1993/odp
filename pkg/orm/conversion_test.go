@@ -11,24 +11,24 @@ import (
 )
 
 func TestConvert(t *testing.T) {
-	appInstance := v1.NewV1AppInstance()
+	appInstance := v1.NewAppInstance()
 	appInstance.Metadata.Namespace = "default"
 	appInstance.Metadata.Name = "test_es_cluster"
 	appInstance.Metadata.Annotations["shortName"] = "我的ES集群"
 	appInstance.Metadata.Annotations["desc"] = "Elastisearch 7.2.1 高可用集群"
-	appInstance.Spec.AppRef = v1.V1AppRef{
+	appInstance.Spec.AppRef = v1.AppRef{
 		Name:    "test_es_cluster",
 		Version: "7.2.1",
 	}
-	appInstance.Spec.Modules = []v1.V1AppInstanceModule{
-		v1.V1AppInstanceModule{
+	appInstance.Spec.Modules = []v1.AppInstanceModule{
+		v1.AppInstanceModule{
 			HostRefs: []string{"node-25", "node-32", "node-99"},
-			Args: []v1.V1AppInstanceArgs{
-				v1.V1AppInstanceArgs{
+			Args: []v1.AppInstanceArgs{
+				v1.AppInstanceArgs{
 					Name:  "es_data_path",
 					Value: "/opt/es/data",
 				},
-				v1.V1AppInstanceArgs{
+				v1.AppInstanceArgs{
 					Name:  "es_log_path",
 					Value: "/opt/es/logs",
 				},

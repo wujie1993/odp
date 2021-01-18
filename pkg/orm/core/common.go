@@ -37,7 +37,7 @@ const (
 
 	DefaultNamespace = "default"
 
-	RegistryPrefix = "/prophet"
+	RegistryPrefix = "/registry"
 
 	KindApp         = "app"
 	KindAppInstance = "appInstance"

@@ -66,7 +66,6 @@ gen: gen-orm gen-client
 
 # 运行服务端
 run: gen doc
-	sh scripts/asset/bindata.sh
 	go run main.go
 
 # 打包项目构建后的产物，包括客户端与服务端以及配置文件
@@ -75,8 +74,9 @@ pack: build ctl
 	cd build/ ; tar -cvf deployer.tar .
 
 test: 
-	go test ./pkg/db/*_test.go -cover -coverpkg "$(module)/pkg/db"
-	go test ./pkg/orm/v1/*_test.go -cover -coverpkg "$(module)/pkg/orm/v1"
+	go test ./... -cover -ldflags " \
+		-X '$(module)/tests.EtcdEndpoint=localhost:2379' \
+	"
 
 tool:
 	go vet ./...; true

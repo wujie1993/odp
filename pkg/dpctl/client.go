@@ -137,7 +137,7 @@ func CreateResource(opts CreateResourceOptions) {
 
 		cli := getClient(kind)
 		if cli == nil {
-			fmt.Println("dose not support %s creation\n", kind)
+			fmt.Printf("dose not support %s creation\n", kind)
 			exitCode++
 			continue
 		}
@@ -176,7 +176,7 @@ func ApplyResource(opts ApplyResourceOptions) {
 
 		cli := getClient(kind)
 		if cli == nil {
-			fmt.Println("dose not support %s creation\n", kind)
+			fmt.Printf("dose not support %s creation\n", kind)
 			exitCode++
 			continue
 		}
