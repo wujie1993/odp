@@ -20,11 +20,6 @@ jobs:
     - name: Show go envs
       run: go env
    
-    - name: Install swag
-      run: git clone -b v1.6.7 https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag && go install github.com/swaggo/swag/cmd/swag
-      env:
-        GOPATH: /home/runner/go
-
     - name: Cache go pkgs
       uses: actions/cache@v2
       env:
@@ -33,7 +28,12 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/pkg
         key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('./go.sum') }}
-   
+
+    - name: Install swag
+      run: git clone -b v1.6.7 https://github.com/swaggo/swag.git $GOPATH/src/github.com/swaggo/swag && go install github.com/swaggo/swag/cmd/swag
+      env:
+        GOPATH: /home/runner/go
+
     - name: Get packages
       run: go get -v ./...
 
