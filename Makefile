@@ -6,15 +6,16 @@ commit = $(shell git log -n 1 --pretty=format:"%H")
 build = $(shell git log -n 1 --format="%ad")
 author = $(shell git log -n 1 --format="%ae")
 go_version = $(shell go version)
+build_dir = ./build
 
 all: build
 
 prebuild:
-	mkdir -p build
+	mkdir -p $(build_dir)/outputs
 
 # 编译客户端二进制程序
 ctl: prebuild gen
-	go build -v -o build/dpctl -ldflags " \
+	go build -v -o $(build_dir)/outputs/wavectl -ldflags " \
 		-X '$(module)/pkg/version.Version=$(version)' \
 		-X '$(module)/pkg/version.GoVersion=$(go_version)' \
 		-X '$(module)/pkg/version.Commit=$(commit)' \
@@ -24,13 +25,14 @@ ctl: prebuild gen
 
 # 编译服务端二进制程序
 build: prebuild gen doc
-	go build -v -o build/deployer -ldflags " \
+	go build -v -o $(build_dir)/outputs/waves -ldflags " \
 		-X '$(module)/pkg/version.Version=$(version)' \
 		-X '$(module)/pkg/version.GoVersion=$(go_version)' \
 		-X '$(module)/pkg/version.Commit=$(commit)' \
 		-X '$(module)/pkg/version.Build=$(build)' \
 		-X '$(module)/pkg/version.Author=$(author)' \
 	"
+	cp -rf conf $(build_dir)/outputs/
 
 # 生成swagger api文档
 doc:
@@ -69,14 +71,17 @@ run: gen doc
 	go run main.go
 
 # 打包项目构建后的产物，包括客户端与服务端以及配置文件
-pack: build ctl
-	cp -r conf build/
-	cd build/ ; tar -cvf deployer.tar .
+release: build ctl
+	mkdir -p $(build_dir)/releases
+	cd $(build_dir)/outputs && tar -cvf ../releases/waves.tar ./
 
 test: 
 	go test ./... -cover -ldflags " \
 		-X '$(module)/tests.EtcdEndpoint=localhost:2379' \
 	"
+
+image:
+	docker build . -t waves:latest	
 
 tool:
 	go vet ./...; true
@@ -87,7 +92,7 @@ lint:
 
 # 清理项目中的临时文件
 clean:
-	rm -rf ./build
+	rm -rf $(build_dir)
 	go clean -i .
 
 help:
