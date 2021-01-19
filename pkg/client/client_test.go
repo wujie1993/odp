@@ -10,6 +10,10 @@ import (
 	"github.com/wujie1993/waves/tests"
 )
 
+func init() {
+	tests.ServeHTTP()
+}
+
 func TestGetHosts(t *testing.T) {
 	cli := client.NewClientSet(tests.ServiceEndpoint)
 	result, err := cli.V1().Hosts().List(context.TODO())
