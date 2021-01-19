@@ -1,4 +1,4 @@
-name: waves
+name: ci
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main,ci ]
 
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -39,36 +39,18 @@ jobs:
 
     - name: Build
       run: make
+    
+    - name: Test
+      run: make test
 
-  test:
+  build-image:
     runs-on: ubuntu-latest
-    services:
-      etcd:
-        image: quay.io/coreos/etcd:v3.3.19
-        ports:
-        - 2379:2379
-        env:
-          ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379 
-          ETCD_ADVERTISE_CLIENT_URLS: http://0.0.0.0:2379
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.13
-    
-    - name: Cache go pkgs
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-go-pkgs
-        GOPATH: /home/runner/go
-      with:
-        path: ${{ env.GOPATH }}/pkg
-        key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('./go.sum') }}
-   
-    - name: Get packages
-      run: go get -v ./...
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
-    - name: Test
-      run: make test
+    - name: Build image
+      run: make image
+
