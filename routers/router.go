@@ -24,24 +24,6 @@ func InitRouter() *gin.Engine {
 	baseRouter.Static("/web", "./web")
 	baseRouter.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// 健康检查接口
-	baseRouter.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, map[string]string{"Health": "ok"})
-	})
-
-	// 版本显示接口
-	baseRouter.GET("/version", func(c *gin.Context) {
-		c.JSON(200, map[string]interface{}{
-			"Version": version.Version,
-			"Commit":  version.Commit,
-			"Build":   version.Build,
-			"Author":  version.Author,
-			"Golang": map[string]string{
-				"Version": version.GoVersion,
-			},
-		})
-	})
-
 	apiRouter := baseRouter.Group("/api")
 	// 实体对象接口组
 	apiV1 := apiRouter.Group("/v1")
@@ -225,6 +207,24 @@ func InitRouter() *gin.Engine {
 			host.DELETE(":name", c.DeleteHost)
 		}
 	}
+
+	// 版本显示接口
+	baseRouter.GET("/version", func(c *gin.Context) {
+		c.JSON(200, map[string]interface{}{
+			"Version": version.Version,
+			"Commit":  version.Commit,
+			"Build":   version.Build,
+			"Author":  version.Author,
+			"Golang": map[string]string{
+				"Version": version.GoVersion,
+			},
+		})
+	})
+
+	// 健康检查接口
+	baseRouter.GET("/healthz", func(c *gin.Context) {
+		c.JSON(200, map[string]string{"Health": "ok"})
+	})
 
 	return r
 }

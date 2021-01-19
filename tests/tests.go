@@ -53,9 +53,10 @@ func ServeHTTP() {
 		Handler: routersInit,
 	}
 	go server.ListenAndServe()
+	// wait until the server is ready
 	for {
 		time.Sleep(time.Second)
-		resp, err := http.Get(ServiceEndpoint + "/version")
+		resp, err := http.Get(ServiceEndpoint + "/healthz")
 		if err != nil {
 			continue
 		}
