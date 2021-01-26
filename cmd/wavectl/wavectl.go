@@ -5,7 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/wujie1993/waves/pkg/dpctl/cmd"
+	"github.com/wujie1993/waves/pkg/wavectl/cmd"
 )
 
 func init() {

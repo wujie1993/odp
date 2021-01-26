@@ -21,7 +21,7 @@ ctl: prebuild gen
 		-X '$(module)/pkg/version.Commit=$(commit)' \
 		-X '$(module)/pkg/version.Build=$(build)' \
 		-X '$(module)/pkg/version.Author=$(author)' \
-	" cmd/dpctl/dpctl.go
+	" cmd/wavectl/wavectl.go
 
 # 编译服务端二进制程序
 build: prebuild gen doc

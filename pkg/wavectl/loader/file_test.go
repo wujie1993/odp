@@ -3,7 +3,7 @@ package loader_test
 import (
 	"testing"
 
-	"github.com/wujie1993/waves/pkg/dpctl/loader"
+	"github.com/wujie1993/waves/pkg/wavectl/loader"
 )
 
 func TestGetHosts(t *testing.T) {

@@ -1,4 +1,4 @@
-package dpctl
+package wavectl
 
 import (
 	"encoding/json"

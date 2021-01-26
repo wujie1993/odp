@@ -1,12 +1,12 @@
-package dpctl
+package wavectl
 
 import (
 	"fmt"
 	"os"
 
 	clientset "github.com/wujie1993/waves/pkg/client"
-	"github.com/wujie1993/waves/pkg/dpctl/loader"
 	"github.com/wujie1993/waves/pkg/orm/core"
+	"github.com/wujie1993/waves/pkg/wavectl/loader"
 )
 
 var exitCode int

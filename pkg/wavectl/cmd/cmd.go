@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	dpctl "github.com/wujie1993/waves/pkg/dpctl"
+	"github.com/wujie1993/waves/pkg/wavectl"
 )
 
 func Execute() {
@@ -51,7 +51,7 @@ func Execute() {
 			resourceName = args[1]
 		}
 
-		dpctl.GetResource(dpctl.GetResourceOptions{
+		wavectl.GetResource(wavectl.GetResourceOptions{
 			Endpoint:     endpoint,
 			Namespace:    namespace,
 			Resource:     resource,
@@ -85,7 +85,7 @@ func Execute() {
 
 		log.SetLevel(log.Level(level))
 
-		dpctl.CreateResource(dpctl.CreateResourceOptions{
+		wavectl.CreateResource(wavectl.CreateResourceOptions{
 			Endpoint: endpoint,
 			File:     file,
 		})
@@ -115,7 +115,7 @@ func Execute() {
 
 		log.SetLevel(log.Level(level))
 
-		dpctl.ApplyResource(dpctl.ApplyResourceOptions{
+		wavectl.ApplyResource(wavectl.ApplyResourceOptions{
 			Endpoint: endpoint,
 			File:     file,
 		})
@@ -160,7 +160,7 @@ func Execute() {
 
 		log.SetLevel(log.Level(level))
 
-		dpctl.DeleteResource(dpctl.DeleteResourceOptions{
+		wavectl.DeleteResource(wavectl.DeleteResourceOptions{
 			Endpoint:     endpoint,
 			Namespace:    namespace,
 			Resource:     resource,
@@ -212,7 +212,7 @@ func Execute() {
 
 			log.SetLevel(log.Level(level))
 
-			dpctl.ManageHostPlugin(dpctl.HostPluginOptions{
+			wavectl.ManageHostPlugin(wavectl.HostPluginOptions{
 				Endpoint:      endpoint,
 				Action:        args[0],
 				Host:          host,
@@ -232,7 +232,7 @@ func Execute() {
 	hostPluginCmd.MarkFlagRequired("plugin-name")
 
 	rootCmd := &cobra.Command{
-		Use:   "dpctl",
+		Use:   "wavectl",
 		Short: "The command line tool of visible deploy platform",
 	}
 	rootCmd.AddCommand(getCmd)
