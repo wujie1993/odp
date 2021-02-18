@@ -12,22 +12,24 @@ import (
 	"github.com/wujie1993/waves/pkg/setting"
 )
 
-// JobOperator 任务控制器
+// JobOperator 任务管理器
 type JobOperator struct {
 	BaseOperator
 }
 
+// handleJob 处理任务的变更操作
 func (o *JobOperator) handleJob(ctx context.Context, obj core.ApiObject) error {
 	job := obj.(*v2.Job)
 	log.Tracef("%s '%s' is %s", job.Kind, job.GetKey(), job.Status.Phase)
 
 	switch job.Status.Phase {
 	case core.PhaseDeleting:
-		return o.handleDeleting(ctx, obj)
+		o.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeJob 级联清除任务的关联资源
 func (o JobOperator) finalizeJob(ctx context.Context, obj core.ApiObject) error {
 	job := obj.(*v2.Job)
 
@@ -37,7 +39,7 @@ func (o JobOperator) finalizeJob(ctx context.Context, obj core.ApiObject) error 
 		for _, play := range job.Spec.Exec.Ansible.Plays {
 			// 删除关联的inventory
 			if play.Inventory.ValueFrom.ConfigMapRef.Name != "" {
-				if _, err := o.helper.V1.ConfigMap.Delete(context.TODO(), play.Inventory.ValueFrom.ConfigMapRef.Namespace, play.Inventory.ValueFrom.ConfigMapRef.Name, core.WithSync()); err != nil {
+				if _, err := o.helper.V1.ConfigMap.Delete(context.TODO(), play.Inventory.ValueFrom.ConfigMapRef.Namespace, play.Inventory.ValueFrom.ConfigMapRef.Name); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -46,7 +48,7 @@ func (o JobOperator) finalizeJob(ctx context.Context, obj core.ApiObject) error 
 			if play.GroupVars.ValueFrom.ConfigMapRef.Name != "" {
 				if _, err := o.helper.V1.ConfigMap.Delete(context.TODO(),
 					play.GroupVars.ValueFrom.ConfigMapRef.Namespace,
-					play.GroupVars.ValueFrom.ConfigMapRef.Name, core.WithSync()); err != nil {
+					play.GroupVars.ValueFrom.ConfigMapRef.Name); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -61,6 +63,7 @@ func (o JobOperator) finalizeJob(ctx context.Context, obj core.ApiObject) error 
 	return nil
 }
 
+// NewJobOperator 创建任务管理器
 func NewJobOperator() *JobOperator {
 	o := &JobOperator{
 		BaseOperator: NewBaseOperator(v2.NewJobRegistry()),

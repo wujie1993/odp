@@ -10,24 +10,26 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/v1"
 )
 
-// ConfigMapOperator 配置字典控制器
+// ConfigMapOperator 配置字典管理器
 type ConfigMapOperator struct {
 	BaseOperator
 
 	revisioner registry.Revisioner
 }
 
+// handleConfigMap 处理配置字典的变更操作
 func (o *ConfigMapOperator) handleConfigMap(ctx context.Context, obj core.ApiObject) error {
 	configMap := obj.(*v1.ConfigMap)
 	log.Tracef("%s '%s' is %s", configMap.Kind, configMap.GetKey(), configMap.Status.Phase)
 
 	switch configMap.Status.Phase {
 	case core.PhaseDeleting:
-		return o.handleDeleting(ctx, obj)
+		o.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeConfigMap 级联清除配置字典的关联资源
 func (o ConfigMapOperator) finalizeConfigMap(ctx context.Context, obj core.ApiObject) error {
 	configMap := obj.(*v1.ConfigMap)
 
@@ -42,6 +44,7 @@ func (o ConfigMapOperator) finalizeConfigMap(ctx context.Context, obj core.ApiOb
 	return nil
 }
 
+// NewConfigMapOperator 创建配置字典管理器
 func NewConfigMapOperator() *ConfigMapOperator {
 	o := &ConfigMapOperator{
 		BaseOperator: NewBaseOperator(v1.NewConfigMapRegistry()),

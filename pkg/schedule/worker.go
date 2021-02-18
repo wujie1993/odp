@@ -44,14 +44,16 @@ func (w *Worker) Run(ctx context.Context, job *v2.Job) error {
 		w.busy = false
 	}()
 
-	// 创建任务目录
 	jobDir, _ := filepath.Abs(filepath.Join(setting.AppSetting.DataDir, setting.JobsDir, job.Metadata.Uid))
+
+	// 清理任务目录
+	os.RemoveAll(jobDir)
+
+	// 创建任务目录
 	if err := os.MkdirAll(jobDir, 0755); err != nil {
 		log.Error(err)
 		return err
 	}
-	// 目前不需要清理任务目录
-	//defer os.RemoveAll(jobDir)
 
 	helper := orm.GetHelper()
 
@@ -353,7 +355,7 @@ func (w *Worker) Run(ctx context.Context, job *v2.Job) error {
 		log.Error(err)
 
 		elapsed := time.Since(startTime)
-		if elapsed >= job.Spec.TimeoutSeconds*time.Second {
+		if elapsed >= job.Spec.TimeoutSeconds*time.Second || err.Error() == context.DeadlineExceeded.Error() {
 			return e.Errorf("任务执行超时")
 		}
 		return err

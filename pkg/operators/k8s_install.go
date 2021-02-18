@@ -216,7 +216,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 
 			// 监听任务
 			jobCtx, _ := context.WithCancel(ctx)
-			jobActionChan := c.helper.V1.Job.Watch(jobCtx, c.namespace, job.Metadata.Name)
+			jobActionChan := c.helper.V1.Job.Watch(jobCtx, "", job.Metadata.Name)
 			for jobAction := range jobActionChan {
 				job := jobAction.Obj.(*v1.Job)
 				switch jobAction.Type {
@@ -306,48 +306,34 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 
 		}
 	case core.PhaseDeleting:
-		// 如果资源正在删除中，则跳过
-		if _, ok := c.deletings.Get(k8s.GetKey()); ok {
-			return nil
-		}
-		c.deletings.Set(k8s.GetKey(), k8s.SpecHash())
-		defer c.deletings.Unset(k8s.GetKey())
+		c.delete(ctx, obj)
+	}
 
-		if len(k8s.Metadata.Finalizers) > 0 {
-			// 每次只处理一项Finalizer
-			switch k8s.Metadata.Finalizers[0] {
-			case core.FinalizerCleanRefEvent:
-				// 同步删除关联的事件
-				eventList, err := c.helper.V1.Event.List(context.TODO(), "")
-				if err != nil {
+	return nil
+}
+
+func (o K8sInstallOperator) finalizeK8s(ctx context.Context, obj core.ApiObject) error {
+	k8s := obj.(*v1.K8sConfig)
+
+	// 每次只处理一项Finalizer
+	switch k8s.Metadata.Finalizers[0] {
+	case core.FinalizerCleanRefEvent:
+		// 同步删除关联的事件
+		eventList, err := o.helper.V1.Event.List(context.TODO(), "")
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		for _, eventObj := range eventList {
+			event := eventObj.(*v1.Event)
+			if event.Spec.ResourceRef.Kind == core.KindK8sConfig && event.Spec.ResourceRef.Namespace == k8s.Metadata.Namespace && event.Spec.ResourceRef.Name == k8s.Metadata.Name {
+				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name); err != nil {
 					log.Error(err)
 					return err
 				}
-				for _, eventObj := range eventList {
-					event := eventObj.(*v1.Event)
-					if event.Spec.ResourceRef.Kind == core.KindK8sConfig && event.Spec.ResourceRef.Namespace == k8s.Metadata.Namespace && event.Spec.ResourceRef.Name == k8s.Metadata.Name {
-						if _, err := c.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
-							log.Error(err)
-							return err
-						}
-					}
-				}
-			}
-
-			c.deletings.Unset(k8s.GetKey())
-			k8s.Metadata.Finalizers = k8s.Metadata.Finalizers[1:]
-			if _, err := c.registry.Update(context.TODO(), k8s, core.WithFinalizer()); err != nil {
-				log.Error(err)
-				return err
-			}
-		} else {
-			if _, err := c.registry.Delete(context.TODO(), k8s.Metadata.Namespace, k8s.Metadata.Name); err != nil {
-				log.Error(err)
-				return err
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -420,7 +406,7 @@ func (c *K8sInstallOperator) deleteK8s(ctx context.Context, k8s *v1.K8sConfig, i
 
 	// 监听任务
 	jobCtx, _ := context.WithCancel(ctx)
-	jobActionChan := c.helper.V1.Job.Watch(jobCtx, c.namespace, job.Metadata.Name)
+	jobActionChan := c.helper.V1.Job.Watch(jobCtx, "", job.Metadata.Name)
 	for jobAction := range jobActionChan {
 		job := jobAction.Obj.(*v1.Job)
 		switch jobAction.Type {
@@ -643,7 +629,7 @@ func (c *K8sInstallOperator) handleK8sLabel(ctx context.Context, k8s *v1.K8sConf
 
 	// 监听任务
 	jobCtx, _ := context.WithCancel(ctx)
-	jobActionChan := c.helper.V1.Job.Watch(jobCtx, c.namespace, job.Metadata.Name)
+	jobActionChan := c.helper.V1.Job.Watch(jobCtx, "", job.Metadata.Name)
 	for jobAction := range jobActionChan {
 		job := jobAction.Obj.(*v1.Job)
 		switch jobAction.Type {
@@ -695,10 +681,12 @@ func (c *K8sInstallOperator) handleK8sLabel(ctx context.Context, k8s *v1.K8sConf
 	return
 }
 
+// NewK8sInstallOperator 创建K8S集群管理器
 func NewK8sInstallOperator() *K8sInstallOperator {
 	o := &K8sInstallOperator{
 		BaseOperator: NewBaseOperator(v1.NewK8sConfigRegistry()),
 	}
 	o.SetHandleFunc(o.handleK8s)
+	o.SetFinalizeFunc(o.finalizeK8s)
 	return o
 }

@@ -29,6 +29,7 @@ func (s SortByName) Less(i, j int) bool {
 	return strings.Compare(s[i], s[j]) < 0
 }
 
+// scan 扫描本地目录上的文件，并提取返回可用于生成代码的模板信息
 func scan(pkgPath string) (tpls.CodeTpl, error) {
 	// 初始化代码模板
 	codeTpl := tpls.CodeTpl{

@@ -1,6 +1,13 @@
+/*
+ ** 此处存放v2版本资源结构的定义
+ */
+
 package v2
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/wujie1993/waves/pkg/orm/core"
@@ -200,6 +207,100 @@ type HostPlugin struct {
 	AppRef         AppRef
 }
 
+// SpecEncode 序列化Spec字段的内容
+func (obj AppInstance) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+// SpecDecode 反序列化Spec字段的内容
+func (obj *AppInstance) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+// SpecHash 计算Spec字段中的"有效"内容哈希值
+func (obj AppInstance) SpecHash() string {
+	for moduleIndex, module := range obj.Spec.Modules {
+		for replicaIndex := range module.Replicas {
+			obj.Spec.Modules[moduleIndex].Replicas[replicaIndex].Notes = ""
+		}
+	}
+	obj.Spec.LivenessProbe = LivenessProbe{}
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+// SpecEncode 序列化Spec字段的内容
+func (obj Host) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+// SpecDecode 反序列化Spec字段的内容
+func (obj *Host) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+// SpecHash 计算Spec字段中的"有效"内容哈希值
+func (obj Host) SpecHash() string {
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+// SpecEncode 序列化Spec字段的内容
+func (obj Job) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+// SpecDecode 反序列化Spec字段的内容
+func (obj *Job) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+// SpecHash 计算Spec字段中的"有效"内容哈希值
+func (obj Job) SpecHash() string {
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+// GetModule 根据名称获取模块
+func (obj AppInstance) GetModule(moduleName string) (AppInstanceModule, bool) {
+	for _, module := range obj.Spec.Modules {
+		if module.Name == moduleName {
+			return module, true
+		}
+	}
+	return AppInstanceModule{}, false
+}
+
+// GetModule 根据参数名获取模块切片中的指定参数
+func (obj AppInstance) GetModuleReplicaArgValue(moduleName string, replicaIndex int, argName string) interface{} {
+	for _, module := range obj.Spec.Modules {
+		if module.Name != moduleName {
+			continue
+		}
+		for index, replica := range module.Replicas {
+			if index != replicaIndex {
+				continue
+			}
+			for _, arg := range replica.Args {
+				if arg.Name == argName {
+					return arg.Value
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// GetGlobalArgValue 根据参数名获取指定的全局参数
+func (obj AppInstance) GetGlobalArgValue(argName string) interface{} {
+	for _, arg := range obj.Spec.Global.Args {
+		if arg.Name == argName {
+			return arg.Value
+		}
+	}
+	return nil
+}
+
 func (s AppInstanceSpec) GetModuleReplicaArgValue(moduleName string, replicaIndex int, argName string) (interface{}, bool) {
 	for _, module := range s.Modules {
 		if module.Name == moduleName {
@@ -250,4 +351,30 @@ func (s *AppInstanceSpec) SetGlobalArgValue(argName string, argValue interface{}
 		}
 	}
 	return false
+}
+
+// NewHost 实例化主机
+func NewHost() *Host {
+	host := new(Host)
+	host.Init(ApiVersion, core.KindHost)
+	return host
+}
+
+// NewAppInstance 实例化应用实例
+func NewAppInstance() *AppInstance {
+	appInstance := new(AppInstance)
+	appInstance.Init(ApiVersion, core.KindAppInstance)
+	appInstance.Spec.LivenessProbe.InitialDelaySeconds = 10
+	appInstance.Spec.LivenessProbe.PeriodSeconds = 60
+	appInstance.Spec.LivenessProbe.TimeoutSeconds = 60
+	return appInstance
+}
+
+// NewJob 实例化任务
+func NewJob() *Job {
+	job := new(Job)
+	job.Init(ApiVersion, core.KindJob)
+	job.Spec.TimeoutSeconds = core.JobDefaultTimeoutSeconds
+	job.Spec.FailureThreshold = core.JobDefaultFailureThreshold
+	return job
 }

@@ -21,13 +21,11 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/core"
 	"github.com/wujie1993/waves/pkg/schedule"
 	"github.com/wujie1993/waves/pkg/setting"
-	"github.com/wujie1993/waves/pkg/util"
 	"github.com/wujie1993/waves/routers"
 )
 
 func init() {
 	setting.Setup()
-	util.Setup()
 
 	// 设置日志输出
 	log.SetOutput(os.Stdout)
@@ -40,8 +38,15 @@ func init() {
 
 	// 初始化数据库连接
 	db.InitKV()
-	orm.Init()
 
+	// 初始化底层数据
+	orm.InitStorage()
+
+	// 加载应用
+	loadApps()
+}
+
+func loadApps() {
 	// 在服务启动时先同步刷新一遍应用，再以每30秒为间隔异步刷新应用
 	loader.LoadApps([]string{core.AppCategoryThirdParty, core.AppCategoryHostPlugin}, filepath.Join(setting.AnsibleSetting.PlaybooksDir, setting.PlaybooksAppsDir, setting.AppsYml))
 	loader.LoadPkgs([]string{core.AppCategoryCustomize, core.AppCategoryAlgorithmPlugin}, setting.PackageSetting.PkgPath)
@@ -52,9 +57,6 @@ func init() {
 			loader.LoadPkgs([]string{core.AppCategoryCustomize, core.AppCategoryAlgorithmPlugin}, setting.PackageSetting.PkgPath)
 		}
 	}()
-
-	// TODO: 加载部署包，由于部分应用服务的配置仍然需要手工配置，目前暂不支持直接通过部署包生成应用
-	// loader.LoadPkgs(setting.AppSetting.PackagesDir)
 }
 
 func loadPlugins(ctx context.Context) {
@@ -118,6 +120,21 @@ func loadPlugins(ctx context.Context) {
 
 // @tag.name Event
 // @tag.description 事件
+
+// @tag.name GPU
+// @tag.description 显卡
+
+// @tag.name Namespace
+// @tag.description 命名空间
+
+// @tag.name Project
+// @tag.description 项目
+
+// @tag.name Revision
+// @tag.description 修订历史
+
+// @tag.name Topology
+// @tag.description 拓扑
 
 func main() {
 	flag.Parse()

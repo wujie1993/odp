@@ -18,6 +18,7 @@ const (
 	AnnotationShortName = "ShortName"
 )
 
+// Event 管理器中记录事件日志时使用的结构
 type Event struct {
 	core.BaseApiObj
 	Action string
@@ -26,23 +27,27 @@ type Event struct {
 	Phase  string
 }
 
+// MutexMap 是通过锁机制实现的协程安全字典
 type MutexMap struct {
 	hashMap map[string]interface{}
 	mutex   sync.RWMutex
 }
 
+// Set 向字典中添加记录，当记录已存在时会发生覆盖
 func (m *MutexMap) Set(key string, value interface{}) {
 	m.mutex.Lock()
 	m.hashMap[key] = value
 	m.mutex.Unlock()
 }
 
+// Unset 从字典中移除记录
 func (m *MutexMap) Unset(key string) {
 	m.mutex.Lock()
 	delete(m.hashMap, key)
 	m.mutex.Unlock()
 }
 
+// Get 获取字典中的记录
 func (m *MutexMap) Get(key string) (interface{}, bool) {
 	m.mutex.RLock()
 	value, ok := m.hashMap[key]
@@ -50,20 +55,23 @@ func (m *MutexMap) Get(key string) (interface{}, bool) {
 	return value, ok
 }
 
+// NewMutexMap 创建一个新的协程安全字典
 func NewMutexMap() *MutexMap {
 	return &MutexMap{
 		hashMap: make(map[string]interface{}),
 	}
 }
 
+// HandleFunc 资源处理方法定义
 type HandleFunc func(ctx context.Context, obj core.ApiObject) error
 
+// ReconcileFunc 收敛方法定义
 type ReconcileFunc func(ctx context.Context, obj core.ApiObject)
 
+// BaseOperator 基础管理器中实现了管理的生命周期管理，其中封装了各个资源管理器的通用字段与方法，可根据需要注入自定义的handler,reconciler和finalizer方法。
 type BaseOperator struct {
 	helper                *orm.Helper
 	registry              registry.ApiObjectRegistry
-	namespace             string
 	handle                HandleFunc
 	reconcile             ReconcileFunc
 	finalize              HandleFunc
@@ -74,6 +82,7 @@ type BaseOperator struct {
 	applyings             *MutexMap
 }
 
+// Run 运行资源管理器
 func (o BaseOperator) Run(ctx context.Context) {
 	// 开启分布式锁
 	lockKey := o.getLockKey()
@@ -92,6 +101,7 @@ func (o BaseOperator) Run(ctx context.Context) {
 	wg.Wait()
 }
 
+// runReconcile 定时执行自定义的reconcile收敛逻辑，使资源达到理想中的状态
 func (o BaseOperator) runReconcile(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -104,7 +114,7 @@ func (o BaseOperator) runReconcile(ctx context.Context, wg *sync.WaitGroup) {
 			log.Debugf("%+v reconcile stopped", o.registry.GVK())
 			return
 		default:
-			objs, err := o.registry.List(context.TODO(), o.namespace)
+			objs, err := o.registry.List(context.TODO(), "")
 			if err != nil {
 				log.Error(err)
 			}
@@ -117,6 +127,7 @@ func (o BaseOperator) runReconcile(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+// runHandle 开启资源变更的监听，当资源发生创建，更新或删除时会触发自定义的handle处理逻辑
 func (o BaseOperator) runHandle(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -125,7 +136,7 @@ func (o BaseOperator) runHandle(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	watchCtx, _ := context.WithCancel(ctx)
-	watcher := o.registry.ListWatch(watchCtx, o.namespace)
+	watcher := o.registry.ListWatch(watchCtx, "")
 
 	for {
 		select {
@@ -174,35 +185,46 @@ func (o BaseOperator) runHandle(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+// SetHandleFunc 设置自定义资源变更处理防范
 func (o *BaseOperator) SetHandleFunc(f HandleFunc) {
 	o.handle = f
 }
 
+// SetReconcileFunc 设置自定义定时收敛方法
 func (o *BaseOperator) SetReconcileFunc(f ReconcileFunc, periodSecond int) {
 	o.reconcile = f
 	o.reconcilePeriodSecond = periodSecond
 }
 
-// SetReconcileFunc 设置finalizers的关联资源清理方法，每次执行时处理finalizers中的第一项
+// SetReconcileFunc 设置自定义级联资源清理方法
 func (o *BaseOperator) SetFinalizeFunc(f HandleFunc) {
 	o.finalize = f
 }
 
-// handleDeleting 删除资源以及清理其关联资源，首先会清理关联资源，关联资源的清理进度通过finalizers表示，finalizers是一个资源清理队列，每次清理时从finalizers中取出第一项并清理其对应的资源，直至finalizers为空时，才删除资源记录。
-func (o BaseOperator) handleDeleting(ctx context.Context, obj core.ApiObject) error {
+// delete 删除资源以及清理其关联资源
+// 首先调用finalizer方法清理关联资源，关联资源的清理进度通过资源的Metadata.Finalizers字段表示
+// 每次清理时从Metadata.Finalizers中取出第一项并清理其对应的资源，直至为空时，才实际删除资源记录。
+func (o BaseOperator) delete(ctx context.Context, obj core.ApiObject) error {
 	key := obj.GetKey()
-	// 如果资源正在删除中，则跳过
-	if _, ok := o.deletings.Get(key); ok {
-		return nil
-	}
 
-	// 设置删除锁
-	o.deletings.Set(key, obj.SpecHash())
-	defer o.deletings.Unset(key)
+	// 当资源未开始删除时初始化删除锁
+	var mutex *sync.Mutex
+	mutexObj, ok := o.deletings.Get(key)
+	if !ok {
+		mutex = &sync.Mutex{}
+		o.deletings.Set(key, mutex)
+	} else {
+		mutex = mutexObj.(*sync.Mutex)
+	}
+	// 在资源开始一次新的finalize清理动作时，锁定资源，在清理结束后才释放接收下一次的finalize
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	metadata := obj.GetMetadata()
 
 	if len(metadata.Finalizers) > 0 && o.finalize != nil {
+		log.Tracef("finalizing %s of %s", metadata.Finalizers[0], obj.GetKey())
+
 		// 每次只处理一项Finalizer
 		if err := o.finalize(ctx, obj); err != nil {
 			log.Error(err)
@@ -225,10 +247,12 @@ func (o BaseOperator) handleDeleting(ctx context.Context, obj core.ApiObject) er
 	return nil
 }
 
+// getLockKey 获取分布式锁键名
 func (o BaseOperator) getLockKey() string {
 	return core.RegistryPrefix + "/locks/" + o.registry.GVK().Kind
 }
 
+// recordEvent 记录事件日志
 func (o BaseOperator) recordEvent(event Event) error {
 	e := v1.NewEvent()
 	e.Spec.ResourceRef.Kind = event.Kind
@@ -242,9 +266,9 @@ func (o BaseOperator) recordEvent(event Event) error {
 	return o.helper.V1.Event.Record(e)
 }
 
+// NewBaseOperator 创建基础管理器
 func NewBaseOperator(r registry.ApiObjectRegistry) BaseOperator {
 	return BaseOperator{
-		namespace: core.DefaultNamespace,
 		registry:  r,
 		helper:    orm.GetHelper(),
 		objQueue:  make(chan core.ApiObject, 1000),

@@ -11,13 +11,10 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/core"
 )
 
-var storageVersion map[core.GK]string
-var storageRegistry map[core.GVK]ApiObjectRegistry
-
-func init() {
-	storageVersion = make(map[core.GK]string)
+var (
+	storageVersion  = make(map[core.GK]string)
 	storageRegistry = make(map[core.GVK]ApiObjectRegistry)
-}
+)
 
 // RegisterStorageVersion 注册数据库中实际存储的对象版本
 func RegisterStorageVersion(gk core.GK, apiVersion string) error {
@@ -29,6 +26,7 @@ func RegisterStorageVersion(gk core.GK, apiVersion string) error {
 	return nil
 }
 
+// RegisterStorageRegistry 注册可用于数据迁移的存储器
 func RegisterStorageRegistry(registry ApiObjectRegistry) error {
 	gvk := registry.GVK()
 	registeredRegistry, ok := storageRegistry[gvk]
@@ -95,10 +93,12 @@ func MigrateStorageVersion() {
 var convertByBytes core.ConvertByBytesFunc
 var newByGVK core.NewByGVKFunc
 
+// SetConverByBytesFunc 设置将字节转换为资源结构的方法实现，该方法在存储器中使用，将未知的序列化数据反序列化为明确类型的资源对象，并转换为指定版本结构的资源对象
 func SetConvertByBytesFunc(f core.ConvertByBytesFunc) {
 	convertByBytes = f
 }
 
+// SetNewByGVKFunc 设置根据GVK生成明确类型资源对象的方法，该方法在数据迁移时使用，根据Group,ApiVersion和Kind信息实例化对应的资源对象
 func SetNewByGVKFunc(f core.NewByGVKFunc) {
 	newByGVK = f
 }

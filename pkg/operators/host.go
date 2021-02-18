@@ -11,17 +11,19 @@ import (
 
 	"github.com/wujie1993/waves/pkg/ansible"
 	"github.com/wujie1993/waves/pkg/db"
+	"github.com/wujie1993/waves/pkg/e"
 	"github.com/wujie1993/waves/pkg/orm/core"
 	"github.com/wujie1993/waves/pkg/orm/v1"
 	"github.com/wujie1993/waves/pkg/setting"
 	"github.com/wujie1993/waves/pkg/util"
 )
 
-// HostOperator 主机控制器
+// HostOperator 主机管理器
 type HostOperator struct {
 	BaseOperator
 }
 
+// handleHost 处理主机的变更操作
 func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error {
 	host := obj.(*v1.Host)
 	log.Infof("%s '%s' is %s", host.Kind, host.GetKey(), host.Status.Phase)
@@ -46,7 +48,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 			// 信息收集失败，将状态置为未就绪
 			log.Errorf("failed to connect host %s: %s", host.GetKey(), err)
 
-			c.failback(host, core.EventActionConnect, err.Error(), "")
+			c.failback(host, core.EventActionConnect, err.Error(), nil)
 			return err
 		}
 
@@ -74,7 +76,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 			gpuObj, err := c.helper.V1.GPU.Get(context.TODO(), "", c.helper.V1.GPU.GetGPUName(host.Metadata.Name, slotIndex))
 			if err != nil {
 				log.Error(err)
-				c.failback(host, core.EventActionConnect, err.Error(), "")
+				c.failback(host, core.EventActionConnect, err.Error(), nil)
 				return err
 			}
 			if gpuObj == nil {
@@ -85,7 +87,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 				gpu.Spec.Info = gpuInfo
 				if _, err := c.helper.V1.GPU.Create(context.TODO(), gpu); err != nil {
 					log.Error(err)
-					c.failback(host, core.EventActionConnect, err.Error(), "")
+					c.failback(host, core.EventActionConnect, err.Error(), nil)
 					return err
 				}
 			} else {
@@ -95,7 +97,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 				gpu.Spec.Info = gpuInfo
 				if _, err := c.helper.V1.GPU.Update(context.TODO(), gpu); err != nil {
 					log.Error(err)
-					c.failback(host, core.EventActionConnect, err.Error(), "")
+					c.failback(host, core.EventActionConnect, err.Error(), nil)
 					return err
 				}
 			}
@@ -107,7 +109,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 		delete(host.Metadata.Annotations, core.AnnotationJobPrefix+ansible.ANSIBLE_ROLE_HOST_INIT)
 		host.Status.SetCondition(core.ConditionTypeConnected, core.ConditionStatusTrue)
 		host.Status.Phase = core.PhaseInitialing
-		if _, err := c.helper.V1.Host.Update(context.TODO(), host, core.WithStatus()); err != nil {
+		if _, err := c.helper.V1.Host.Update(context.TODO(), host, core.WithAllFields()); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -165,8 +167,8 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 						}
 						return nil
 					case core.PhaseFailed:
-						c.failback(host, core.EventActionInitial, "", job.Metadata.Name)
-						return nil
+						c.failback(host, core.EventActionInitial, "", job)
+						return e.Errorf("host init failed")
 					case core.PhaseRunning:
 					default:
 						log.Warnf("unknown status '%s' of job '%s'", job.Status.Phase, job.GetKey())
@@ -236,7 +238,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 			"act=install",
 		}
 		job.Spec.Exec.Ansible.Playbook = playbookStr
-		job.Spec.TimeoutSeconds = 60
+		job.Spec.TimeoutSeconds = 300
 		job.Spec.FailureThreshold = 3
 		if _, err := c.helper.V1.Job.Create(context.TODO(), job); err != nil {
 			log.Error(err)
@@ -261,11 +263,12 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 			log.Error(err)
 		}
 	case core.PhaseDeleting:
-		return c.handleDeleting(ctx, obj)
+		c.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeHost 级联清除主机的关联资源
 func (o HostOperator) finalizeHost(ctx context.Context, obj core.ApiObject) error {
 	host := obj.(*v1.Host)
 
@@ -297,7 +300,7 @@ func (o HostOperator) finalizeHost(ctx context.Context, obj core.ApiObject) erro
 		for _, eventObj := range eventList {
 			event := eventObj.(*v1.Event)
 			if event.Spec.ResourceRef.Kind == core.KindHost && event.Spec.ResourceRef.Name == host.Metadata.Name {
-				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
+				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -307,6 +310,7 @@ func (o HostOperator) finalizeHost(ctx context.Context, obj core.ApiObject) erro
 	return nil
 }
 
+// reconcileHost 主机定时收敛
 func (o *HostOperator) reconcileHost(ctx context.Context, obj core.ApiObject) {
 	host := obj.(*v1.Host)
 
@@ -338,7 +342,7 @@ func (o *HostOperator) reconcileHost(ctx context.Context, obj core.ApiObject) {
 		gpu := gpuObj.(*v1.GPU)
 		if gpu.Spec.HostRef == host.Metadata.Name {
 			gpu.Spec.Info = v1.GPUInfo{}
-			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithStatus()); err != nil {
+			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithAllFields()); err != nil {
 				log.Error(err)
 				return
 			}
@@ -375,27 +379,31 @@ func (o *HostOperator) reconcileHost(ctx context.Context, obj core.ApiObject) {
 			gpu := gpuObj.(*v1.GPU)
 			gpu.Spec.HostRef = host.Metadata.Name
 			gpu.Spec.Info = gpuInfo
-			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithStatus()); err != nil {
+			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithAllFields()); err != nil {
 				log.Error(err)
 				return
 			}
 		}
 	}
 	// 更新主机信息
-	if _, err := o.helper.V1.Host.Update(context.TODO(), host, core.WhenSpecChanged(), core.WithStatus()); err != nil {
+	if _, err := o.helper.V1.Host.Update(context.TODO(), host, core.WhenSpecChanged(), core.WithAllFields()); err != nil {
 		log.Error(err)
 		return
 	}
 }
 
-// 操作失败回退
-func (o HostOperator) failback(obj core.ApiObject, action, reason, jobRef string) {
+// failback 操作失败回退
+func (o HostOperator) failback(obj core.ApiObject, action string, reason string, job *v1.Job) {
 	host := obj.(*v1.Host)
 
-	// 记录失败事件
-	if reason == "" {
-		reason = core.ConditionStatusFalse
+	var jobRef string
+	if job != nil {
+		jobRef = job.Metadata.Name
+		if reason == "" {
+			reason = job.Status.GetCondition(core.ConditionTypeRun)
+		}
 	}
+
 	if err := o.recordEvent(Event{
 		BaseApiObj: host.BaseApiObj,
 		Action:     action,
@@ -419,6 +427,7 @@ func (o HostOperator) failback(obj core.ApiObject, action, reason, jobRef string
 	}
 }
 
+// NewHostOperator 创建主机管理器
 func NewHostOperator() *HostOperator {
 	o := &HostOperator{
 		BaseOperator: NewBaseOperator(v1.NewHostRegistry()),

@@ -9,22 +9,24 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/v1"
 )
 
-// EventOperator 事件控制器
+// EventOperator 事件管理器
 type EventOperator struct {
 	BaseOperator
 }
 
+// handleEvent 处理事件的变更操作
 func (o *EventOperator) handleEvent(ctx context.Context, obj core.ApiObject) error {
 	event := obj.(*v1.Event)
 	log.Tracef("%s '%s' is %s", event.Kind, event.GetKey(), event.Status.Phase)
 
 	switch event.Status.Phase {
 	case core.PhaseDeleting:
-		return o.handleDeleting(ctx, obj)
+		o.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeEvent 级联清除事件的关联资源
 func (o EventOperator) finalizeEvent(ctx context.Context, obj core.ApiObject) error {
 	event := obj.(*v1.Event)
 
@@ -42,6 +44,7 @@ func (o EventOperator) finalizeEvent(ctx context.Context, obj core.ApiObject) er
 	return nil
 }
 
+// NewEventOperator 创建事件管理器
 func NewEventOperator() *EventOperator {
 	o := &EventOperator{
 		BaseOperator: NewBaseOperator(v1.NewEventRegistry()),

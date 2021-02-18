@@ -2,40 +2,15 @@ package v1
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"sort"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/wujie1993/waves/pkg/orm/core"
-	"github.com/wujie1993/waves/pkg/orm/registry"
 )
 
-type ConfigMap struct {
-	core.BaseApiObj `json:",inline" yaml:",inline"`
-	Data            map[string]string
-}
-
-func (obj ConfigMap) SpecEncode() ([]byte, error) {
-	return json.Marshal(&obj.Data)
-}
-
-func (obj *ConfigMap) SpecDecode(data []byte) error {
-	return json.Unmarshal(data, &obj.Data)
-}
-
-func (obj ConfigMap) SpecHash() string {
-	data, _ := json.Marshal(&obj.Data)
-	return fmt.Sprintf("%x", sha256.Sum256(data))
-}
-
-// +namespaced=true
-type ConfigMapRegistry struct {
-	registry.Registry
-}
-
+// ConfigMapRevision 配置字典修订版本记录器，实现了Revisioner接口
 type ConfigMapRevision struct {
 	kind string
 }
@@ -60,7 +35,7 @@ func (r ConfigMapRevision) SetRevision(ctx context.Context, obj core.ApiObject) 
 		Name:      configMap.Metadata.Name,
 	}
 	revision.Revision = configMap.Metadata.ResourceVersion
-	data, err := configMap.SpecEncode()
+	data, err := configMap.ToJSON()
 	if err != nil {
 		return err
 	}
@@ -83,7 +58,6 @@ func (r ConfigMapRevision) ListRevisions(ctx context.Context, namespace string, 
 	} else if obj == nil {
 		return nil, nil
 	}
-	configMap := obj.(*ConfigMap)
 
 	revisionRegistry := NewRevisionRegistry()
 
@@ -96,11 +70,13 @@ func (r ConfigMapRevision) ListRevisions(ctx context.Context, namespace string, 
 	for _, revisionObj := range revisionList {
 		revision := revisionObj.(*Revision)
 		if revision.ResourceRef.Kind == r.kind && revision.ResourceRef.Namespace == namespace && revision.ResourceRef.Name == name {
-			item := configMap.DeepCopy()
-			if err := item.SpecDecode([]byte(revision.Data)); err != nil {
+			item, err := New(r.kind)
+			if err != nil {
 				return nil, err
 			}
-			item.Metadata.ResourceVersion = revision.Revision
+			if err := item.FromJSON([]byte(revision.Data)); err != nil {
+				return nil, err
+			}
 
 			result = append(result, item)
 		}
@@ -135,8 +111,11 @@ func (r ConfigMapRevision) GetRevision(ctx context.Context, namespace string, na
 	for _, revisionObj := range revisionList {
 		rev := revisionObj.(*Revision)
 		if rev.ResourceRef.Kind == r.kind && rev.ResourceRef.Namespace == namespace && rev.ResourceRef.Name == name && rev.Revision == revision {
-			result := configMap.DeepCopy()
-			if err := result.SpecDecode([]byte(rev.Data)); err != nil {
+			result, err := New(r.kind)
+			if err != nil {
+				return nil, err
+			}
+			if err := result.FromJSON([]byte(rev.Data)); err != nil {
 				return nil, err
 			}
 
@@ -201,10 +180,7 @@ func (r ConfigMapRevision) DeleteRevision(ctx context.Context, namespace string,
 			if err != nil {
 				return nil, err
 			}
-			if err := core.DeepCopy(obj, result); err != nil {
-				return nil, err
-			}
-			if err := result.SpecDecode([]byte(rev.Data)); err != nil {
+			if err := result.FromJSON([]byte(rev.Data)); err != nil {
 				return nil, err
 			}
 
@@ -251,26 +227,9 @@ func (r ConfigMapRevision) DeleteAllRevisions(ctx context.Context, namespace str
 	return nil
 }
 
+// NewConfigMapRevision 实例化配置字典修订历史记录器
 func NewConfigMapRevision() *ConfigMapRevision {
 	return &ConfigMapRevision{
 		kind: core.KindConfigMap,
 	}
-}
-
-func NewConfigMap() *ConfigMap {
-	configMap := new(ConfigMap)
-	configMap.Init(ApiVersion, core.KindConfigMap)
-	configMap.Data = make(map[string]string)
-	return configMap
-}
-
-func NewConfigMapRegistry() ConfigMapRegistry {
-	r := ConfigMapRegistry{
-		Registry: registry.NewRegistry(newGVK(core.KindConfigMap), true),
-	}
-	r.SetDefaultFinalizers([]string{
-		core.FinalizerCleanRevision,
-	})
-	r.SetRevisioner(NewConfigMapRevision())
-	return r
 }

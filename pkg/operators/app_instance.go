@@ -37,6 +37,7 @@ const (
 	ArgFormatGroupHost = "groupHost"
 )
 
+// ModuleAction 描述应用实例模块中每个主机所需要执行的操作，用于生成任务
 type ModuleAction struct {
 	ModuleName    string
 	AppVersion    string
@@ -52,9 +53,10 @@ type AppInstanceOperator struct {
 	revisioner   registry.Revisioner
 }
 
+// handleAppInstance 处理应用实例的变更操作
 func (o *AppInstanceOperator) handleAppInstance(ctx context.Context, obj core.ApiObject) error {
 	appInstance := obj.(*v2.AppInstance)
-	log.Infof("%s '%s' is %s", appInstance.Kind, appInstance.GetKey(), appInstance.Status.Phase)
+	log.Infof("'%s' is %s", appInstance.GetKey(), appInstance.Status.Phase)
 
 	o.setHealthCheck(ctx, obj)
 
@@ -69,41 +71,17 @@ func (o *AppInstanceOperator) handleAppInstance(ctx context.Context, obj core.Ap
 		}
 
 		// 填充事件信息与应用实例状态，忽略没有赋予合法操作行为的应用实例
-		var action string
 		switch appInstance.Spec.Action {
 		case core.AppActionInstall:
 			appInstance.Status.Phase = core.PhaseInstalling
-			action = core.EventActionInstall
 		case core.AppActionUninstall:
 			appInstance.Status.Phase = core.PhaseUninstalling
-			action = core.EventActionUninstall
 		case core.AppActionConfigure:
 			appInstance.Status.Phase = core.PhaseConfiguring
-			action = core.EventActionConfigure
-		case core.AppActionHealthcheck:
-			action = core.EventActionHealthCheck
 		case core.AppActionUpgrade:
-			// 记录应用实例的内容哈希值, 用于后续比较内容体是否有更新，计算哈希值时忽略Action字段
-			appInstance.Spec.Action = ""
-			o.applyings.Set(appInstance.GetKey(), appInstance.SpecHash())
-
-			appInstance.Status.Phase = core.PhaseUpgradeing
-			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
+			appInstance.Status.Phase = core.PhaseUpgrading
 		case core.AppActionRevert:
-			// 记录应用实例的内容哈希值, 用于后续比较内容体是否有更新，计算哈希值时忽略Action字段
-			appInstance.Spec.Action = ""
-			o.applyings.Set(appInstance.GetKey(), appInstance.SpecHash())
-
 			appInstance.Status.Phase = core.PhaseReverting
-			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
 		default:
 			return nil
 		}
@@ -112,204 +90,29 @@ func (o *AppInstanceOperator) handleAppInstance(ctx context.Context, obj core.Ap
 		appInstance.Spec.Action = ""
 		o.applyings.Set(appInstance.GetKey(), appInstance.SpecHash())
 
-		// 根据操作行为构建相应的任务
-		jobObj, err := o.setupJob(appInstance, action)
-		if err != nil {
-			log.Errorf("setup %s job failed of %s: %s", action, appInstance.GetKey(), err)
-			o.failback(appInstance, action, err.Error(), nil)
-			return err
-		}
-		job := jobObj.(*v2.Job)
-
-		// 将应用实例与任务关联并更新应用实例状态
-		appInstance.Metadata.Annotations[core.AnnotationJobPrefix+action] = job.Metadata.Name
-		if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
+		// 等待处理的应用实例健康状态会被重置
+		appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
+		if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithAllFields()); err != nil {
 			log.Error(err)
-			o.failback(appInstance, action, err.Error(), job)
 			return err
-		}
-
-		// 记录事件开始
-		if err := o.recordEvent(Event{
-			BaseApiObj: appInstance.BaseApiObj,
-			Action:     action,
-			Msg:        "",
-			JobRef:     job.Metadata.Name,
-			Phase:      core.PhaseWaiting,
-		}); err != nil {
-			log.Error(err)
 		}
 	case core.PhaseUninstalling:
-		// 如果应用实例没有绑定卸载任务，则将应用状态重置为等待中
-		jobName, ok := appInstance.Metadata.Annotations[core.AnnotationJobPrefix+core.EventActionUninstall]
-		if !ok {
-			if _, err := o.helper.V2.AppInstance.UpdateStatusPhase(appInstance.Metadata.Namespace, appInstance.Metadata.Name, core.PhaseWaiting); err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
-		}
-		// 移除任务注解，需要在后续逻辑中更新应用实例
-		delete(appInstance.Metadata.Annotations, core.AnnotationJobPrefix+core.EventActionUninstall)
-
-		// 侦听卸载任务的状态，并在任务执行完成时将应用实例状态置为已卸载
-		o.watchAndHandleJob(ctx, jobName, func(job *v2.Job) bool {
-			switch job.Status.Phase {
-			case core.PhaseCompleted:
-				// 释放算法实例GPU
-				if err := o.releaseGPU(appInstance); err != nil {
-					log.Error(err)
-					o.failback(appInstance, core.EventActionUninstall, err.Error(), job)
-					return true
-				}
-
-				// 如果初始化任务执行成功, 将应用实例状态更新为已卸载并结束任务侦听
-				appInstance.Status.SetCondition(core.ConditionTypeInstalled, core.ConditionStatusFalse)
-				appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
-				appInstance.SetStatusPhase(core.PhaseUninstalled)
-				if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
-					log.Error(err)
-					return true
-				}
-
-				// 记录事件完成
-				if err := o.recordEvent(Event{
-					BaseApiObj: appInstance.BaseApiObj,
-					Action:     core.EventActionUninstall,
-					Msg:        "",
-					JobRef:     jobName,
-					Phase:      core.PhaseCompleted,
-				}); err != nil {
-					log.Error(err)
-				}
-				return true
-			case core.PhaseFailed:
-				o.failback(appInstance, core.EventActionUninstall, "", job)
-				return true
-			case core.PhaseWaiting, core.PhaseRunning:
-				// 处于运行中状态不做任何处理
-				return false
-			default:
-				log.Warnf("unknown status phase '%s' of job '%s'", job.Status.Phase, jobName)
-				return false
-			}
-		})
+		o.uninstallAppInstance(ctx, appInstance)
 	case core.PhaseConfiguring:
-		// 如果应用实例没有绑定配置任务，则将应用状态重置为等待中
-		jobName, ok := appInstance.Metadata.Annotations[core.AnnotationJobPrefix+core.EventActionConfigure]
-		if !ok {
-			if _, err := o.helper.V2.AppInstance.UpdateStatusPhase(appInstance.Metadata.Namespace, appInstance.Metadata.Name, core.PhaseWaiting); err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
-		}
-		// 移除配置任务注解，需要在后续逻辑中更新应用实例
-		delete(appInstance.Metadata.Annotations, core.AnnotationJobPrefix+core.EventActionConfigure)
-
-		// 侦听配置任务的状态，并在任务执行完成时将应用实例状态置为已安装
-		o.watchAndHandleJob(ctx, jobName, func(job *v2.Job) bool {
-			switch job.Status.Phase {
-			case core.PhaseWaiting, core.PhaseRunning:
-				// 任务运行中，不做任何处理
-				return false
-			case core.PhaseCompleted:
-				// 清除关联的自定义配置
-				for moduleIndex, module := range appInstance.Spec.Modules {
-					for replicaIndex, replica := range module.Replicas {
-						if replica.AdditionalConfigs.ConfigMapRef.Name != "" {
-							appInstance.Spec.Modules[moduleIndex].Replicas[replicaIndex].AdditionalConfigs.ConfigMapRef.Name = ""
-							configMapDeleteCtx, _ := context.WithTimeout(ctx, time.Second*5)
-							if _, err := o.helper.V1.ConfigMap.Delete(configMapDeleteCtx, replica.AdditionalConfigs.ConfigMapRef.Namespace, replica.AdditionalConfigs.ConfigMapRef.Name, core.WithSync()); err != nil {
-								log.Error(err)
-							}
-						}
-					}
-				}
-
-				appInstance.Status.SetCondition(core.ConditionTypeConfigured, core.ConditionStatusTrue)
-				appInstance.SetStatusPhase(core.PhaseInstalled)
-				if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
-					log.Error(err)
-					return true
-				}
-
-				// 记录事件完成
-				if err := o.recordEvent(Event{
-					BaseApiObj: appInstance.BaseApiObj,
-					Action:     core.EventActionConfigure,
-					Msg:        "",
-					JobRef:     jobName,
-					Phase:      core.PhaseCompleted,
-				}); err != nil {
-					log.Error(err)
-				}
-				return true
-			case core.PhaseFailed:
-				o.failback(appInstance, core.EventActionConfigure, "", job)
-				return true
-			default:
-				log.Warnf("unknown status phase '%s' of job '%s'", job.Status.Phase, jobName)
-				return false
-			}
-		})
+		o.updateAppInstance(ctx, obj, core.EventActionConfigure)
 	case core.PhaseInstalling:
-		// 如果应用实例没有绑定安装任务，则将应用状态重置为等待中
-		jobName, ok := appInstance.Metadata.Annotations[core.AnnotationJobPrefix+core.EventActionInstall]
-		if !ok {
-			if _, err := o.helper.V2.AppInstance.UpdateStatusPhase(appInstance.Metadata.Namespace, appInstance.Metadata.Name, core.PhaseWaiting); err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
-		}
-		// 移除安装任务注解，需要在后续逻辑中更新应用实例
-		delete(appInstance.Metadata.Annotations, core.AnnotationJobPrefix+core.EventActionInstall)
-
-		// 侦听安装任务的状态，并在任务执行完成时将应用实例状态置为已就绪
-		o.watchAndHandleJob(ctx, jobName, func(job *v2.Job) bool {
-			switch job.Status.Phase {
-			case core.PhaseWaiting, core.PhaseRunning:
-				// 任务运行中，不做任何处理
-				return false
-			case core.PhaseCompleted:
-				// 如果任务执行成功, 将应用实例状态更新为已安装并结束任务侦听
-				appInstance.Status.SetCondition(core.ConditionTypeInstalled, core.ConditionStatusTrue)
-				appInstance.SetStatusPhase(core.PhaseInstalled)
-				if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
-					log.Error(err)
-					return true
-				}
-
-				// 记录事件完成
-				if err := o.recordEvent(Event{
-					BaseApiObj: appInstance.BaseApiObj,
-					Action:     core.EventActionInstall,
-					Msg:        "",
-					JobRef:     jobName,
-					Phase:      core.PhaseCompleted,
-				}); err != nil {
-					log.Error(err)
-				}
-				return true
-			case core.PhaseFailed:
-				o.failback(appInstance, core.EventActionInstall, "", job)
-				return true
-			default:
-				log.Warnf("unknown status phase '%s' of job '%s'", job.Status.Phase, jobName)
-				return false
-			}
-		})
-	case core.PhaseUpgradeing:
-		o.upgradeAppInstance(ctx, obj, false)
+		o.installAppInstance(ctx, appInstance)
+	case core.PhaseUpgrading:
+		o.updateAppInstance(ctx, obj, core.EventActionUpgrade)
 	case core.PhaseReverting:
-		o.upgradeAppInstance(ctx, obj, true)
+		o.updateAppInstance(ctx, obj, core.EventActionRevert)
 	case core.PhaseDeleting:
-		return o.handleDeleting(ctx, obj)
+		o.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeAppInstance 清除应用实例的关联资源
 func (o AppInstanceOperator) finalizeAppInstance(ctx context.Context, obj core.ApiObject) error {
 	appInstance := obj.(*v2.AppInstance)
 	// 每次只处理一项Finalizer
@@ -324,7 +127,7 @@ func (o AppInstanceOperator) finalizeAppInstance(ctx context.Context, obj core.A
 		for _, eventObj := range eventList {
 			event := eventObj.(*v1.Event)
 			if event.Spec.ResourceRef.Kind == core.KindAppInstance && event.Spec.ResourceRef.Namespace == appInstance.Metadata.Namespace && event.Spec.ResourceRef.Name == appInstance.Metadata.Name {
-				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
+				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -336,7 +139,7 @@ func (o AppInstanceOperator) finalizeAppInstance(ctx context.Context, obj core.A
 			for _, replica := range module.Replicas {
 				if replica.ConfigMapRef.Name != "" {
 					configMapDeleteCtx, _ := context.WithTimeout(ctx, time.Second*5)
-					if _, err := o.helper.V1.ConfigMap.Delete(configMapDeleteCtx, replica.ConfigMapRef.Namespace, replica.ConfigMapRef.Name, core.WithSync()); err != nil {
+					if _, err := o.helper.V1.ConfigMap.Delete(configMapDeleteCtx, replica.ConfigMapRef.Namespace, replica.ConfigMapRef.Name); err != nil {
 						log.Error(err)
 						return err
 					}
@@ -344,7 +147,7 @@ func (o AppInstanceOperator) finalizeAppInstance(ctx context.Context, obj core.A
 			}
 		}
 		if appInstance.Spec.Global.ConfigMapRef.Name != "" {
-			if _, err := o.helper.V1.ConfigMap.Delete(context.TODO(), appInstance.Spec.Global.ConfigMapRef.Namespace, appInstance.Spec.Global.ConfigMapRef.Name, core.WithSync()); err != nil {
+			if _, err := o.helper.V1.ConfigMap.Delete(context.TODO(), appInstance.Spec.Global.ConfigMapRef.Namespace, appInstance.Spec.Global.ConfigMapRef.Name); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -360,11 +163,43 @@ func (o AppInstanceOperator) finalizeAppInstance(ctx context.Context, obj core.A
 			log.Error(err)
 			return err
 		}
+	case core.FinalizerCleanHostPlugin:
+		hostRegistry := v2.NewHostRegistry()
+
+		if appInstance.Spec.Category == core.AppCategoryHostPlugin && len(appInstance.Spec.Modules) > 0 && len(appInstance.Spec.Modules[0].Replicas) > 0 {
+			for _, hostRef := range appInstance.Spec.Modules[0].Replicas[0].HostRefs {
+				// 获取插件关联的主机
+				hostObj, err := hostRegistry.Get(context.TODO(), core.DefaultNamespace, hostRef)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				if hostObj == nil {
+					err := e.Errorf("host %s not found", hostRef)
+					log.Error(err)
+					return err
+				}
+				host := hostObj.(*v2.Host)
+
+				for index, plugin := range host.Info.Plugins {
+					if plugin.AppRef.Name == appInstance.Spec.AppRef.Name && plugin.AppRef.Version == appInstance.Spec.AppRef.Version {
+						host.Info.Plugins = append(host.Info.Plugins[:index], host.Info.Plugins[index+1:]...)
+					}
+				}
+
+				if _, err := hostRegistry.Update(context.TODO(), host, core.WithAllFields()); err != nil {
+					log.Error(err)
+					return err
+				}
+			}
+		}
+
+		return nil
 	}
 	return nil
 }
 
-// 对于已安装状态的应用实例，当应用支持健康检查时，开启健康检查，在其他状态下关闭健康检查
+// setHealthCheck 对于已安装状态的应用实例，当应用支持健康检查时，开启健康检查，在其他状态下关闭健康检查
 func (o *AppInstanceOperator) setHealthCheck(ctx context.Context, obj core.ApiObject) {
 	appInstance := obj.(*v2.AppInstance)
 
@@ -383,9 +218,9 @@ func (o *AppInstanceOperator) setHealthCheck(ctx context.Context, obj core.ApiOb
 				for _, supportAction := range versionApp.SupportActions {
 					if supportAction == core.AppActionHealthcheck {
 						o.enableHealthCheck(ctx, obj)
+						return
 					}
 				}
-				return
 			}
 		}
 	} else {
@@ -393,7 +228,7 @@ func (o *AppInstanceOperator) setHealthCheck(ctx context.Context, obj core.ApiOb
 	}
 }
 
-// 侦听任务的变更，并将任务的.Status.Phase变化交由handleJob处理，handleJob返回的bool值表示是否终止任务的侦听
+// watchAndHandleJob 侦听任务的变更，并将任务的.Status.Phase变化交由handleJob处理，handleJob返回的bool值表示是否终止任务的侦听
 func (o *AppInstanceOperator) watchAndHandleJob(ctx context.Context, jobName string, handleJob func(*v2.Job) bool) error {
 	jobActionChan := o.helper.V2.Job.GetWatch(ctx, "", jobName)
 	for jobAction := range jobActionChan {
@@ -416,7 +251,7 @@ func (o *AppInstanceOperator) watchAndHandleJob(ctx context.Context, jobName str
 	return nil
 }
 
-// 开启健康检查
+// enableHealthCheck 开启健康检查
 func (o *AppInstanceOperator) enableHealthCheck(ctx context.Context, obj core.ApiObject) {
 	appInstance := obj.(*v2.AppInstance)
 
@@ -433,19 +268,21 @@ func (o *AppInstanceOperator) enableHealthCheck(ctx context.Context, obj core.Ap
 
 	// 创建新的健康检查
 	healthCheckCtx, healthCheckCancel := context.WithCancel(ctx)
-	o.healthchecks.Set(appInstance.Metadata.Uid, HealthCheckItem{
+	if o.healthchecks.Set(appInstance.Metadata.Uid, HealthCheckItem{
 		Cancel: healthCheckCancel,
 		LivenessProbe: v2.LivenessProbe{
 			InitialDelaySeconds: appInstance.Spec.LivenessProbe.InitialDelaySeconds,
 			PeriodSeconds:       appInstance.Spec.LivenessProbe.PeriodSeconds,
 			TimeoutSeconds:      appInstance.Spec.LivenessProbe.TimeoutSeconds,
 		},
-	})
+	}) {
+		return
+	}
 
 	go o.healthCheck(healthCheckCtx, appInstance)
 }
 
-// 关闭健康检查
+// disableHealthCheck 关闭健康检查
 func (o *AppInstanceOperator) disableHealthCheck(obj core.ApiObject) {
 	appInstance := obj.(*v2.AppInstance)
 
@@ -460,7 +297,7 @@ func (o *AppInstanceOperator) disableHealthCheck(obj core.ApiObject) {
 	}
 }
 
-// 执行健康检查
+// healthCheck 执行健康检查
 func (o *AppInstanceOperator) healthCheck(ctx context.Context, obj core.ApiObject) {
 	appInstance := obj.(*v2.AppInstance)
 
@@ -556,7 +393,7 @@ func (o *AppInstanceOperator) healthCheck(ctx context.Context, obj core.ApiObjec
 	}
 }
 
-// 操作失败回退
+// failback 操作失败回退
 func (o AppInstanceOperator) failback(obj core.ApiObject, action string, reason string, job *v2.Job) {
 	appInstance := obj.(*v2.AppInstance)
 
@@ -569,10 +406,24 @@ func (o AppInstanceOperator) failback(obj core.ApiObject, action string, reason 
 	}
 
 	switch action {
-	case core.EventActionInstall, core.EventActionUninstall:
-		appInstance.Status.SetCondition(core.ConditionTypeInstalled, reason)
-		appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
-		appInstance.SetStatusPhase(core.PhaseFailed)
+	case core.EventActionInstall:
+		if job == nil {
+			// 关联任务为空时，恢复回未安装状态
+			appInstance.SetStatusPhase(core.PhaseUninstalled)
+		} else {
+			appInstance.Status.SetCondition(core.ConditionTypeInstalled, reason)
+			appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
+			appInstance.SetStatusPhase(core.PhaseFailed)
+		}
+	case core.EventActionUninstall:
+		if job == nil {
+			// 关联任务为空时，恢复回已安装状态
+			appInstance.SetStatusPhase(core.PhaseInstalled)
+		} else {
+			appInstance.Status.SetCondition(core.ConditionTypeInstalled, reason)
+			appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
+			appInstance.SetStatusPhase(core.PhaseFailed)
+		}
 	case core.EventActionConfigure:
 		appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
 		appInstance.Status.SetCondition(core.ConditionTypeConfigured, reason)
@@ -616,7 +467,7 @@ func (o AppInstanceOperator) failback(obj core.ApiObject, action string, reason 
 		// 在健康状态发生变化时更新
 		if appInstance.Status.GetCondition(core.ConditionTypeHealthy) != reason {
 			appInstance.Status.SetCondition(core.ConditionTypeHealthy, reason)
-			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
+			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithAllFields()); err != nil {
 				log.Error(err)
 			}
 		}
@@ -624,8 +475,7 @@ func (o AppInstanceOperator) failback(obj core.ApiObject, action string, reason 
 	}
 
 	// 更新应用实例状态
-	appInstance.Spec.Action = ""
-	if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithStatus()); err != nil {
+	if _, err := o.helper.V2.AppInstance.UpdateStatus(appInstance.Metadata.Namespace, appInstance.Metadata.Name, appInstance.Status); err != nil {
 		log.Error(err)
 	}
 
@@ -641,12 +491,12 @@ func (o AppInstanceOperator) failback(obj core.ApiObject, action string, reason 
 	}
 }
 
-// 根据操作行为构建任务
+// setupJob 根据操作行为构建任务
 func (o *AppInstanceOperator) setupJob(obj core.ApiObject, action string) (core.ApiObject, error) {
 	appInstance := obj.(*v2.AppInstance)
 
 	// 获取应用实例对应的应用
-	appObj, err := o.helper.V1.App.Get(context.TODO(), o.namespace, appInstance.Spec.AppRef.Name)
+	appObj, err := o.helper.V1.App.Get(context.TODO(), core.DefaultNamespace, appInstance.Spec.AppRef.Name)
 	if err != nil {
 		err = e.Errorf("failed to get referred app %s: %s", appInstance.Spec.AppRef.Name, err)
 		log.Error(err)
@@ -749,7 +599,6 @@ func (o *AppInstanceOperator) setupJob(obj core.ApiObject, action string) (core.
 
 	// 创建任务
 	job := v2.NewJob()
-	job.Metadata.Namespace = o.namespace
 	job.Metadata.Name = fmt.Sprintf("%s-%s-%s-%d", core.KindAppInstance, appInstance.Metadata.Name, action, time.Now().Unix())
 	job.Spec.Exec.Type = core.JobExecTypeAnsible
 	job.Spec.Exec.Ansible.Bin = setting.AnsibleSetting.Bin
@@ -771,7 +620,7 @@ func (o *AppInstanceOperator) setupJob(obj core.ApiObject, action string) (core.
 	return job, nil
 }
 
-// 构建应用实例的应用版本升级任务，表示将oldAppInstance升级/回退到newAppInstance
+// setupUpgradeJob 构建应用实例的应用版本升级任务，表示将oldAppInstance升级/回退到newAppInstance
 func (o AppInstanceOperator) setupUpgradeJob(oldAppInstance *v2.AppInstance, newAppInstance *v2.AppInstance) (*v2.Job, error) {
 	// 获取应用
 	appObj, err := o.helper.V1.App.Get(context.TODO(), core.DefaultNamespace, newAppInstance.Spec.AppRef.Name)
@@ -954,7 +803,6 @@ func (o AppInstanceOperator) setupUpgradeJob(oldAppInstance *v2.AppInstance, new
 
 	// 创建任务
 	job := v2.NewJob()
-	job.Metadata.Namespace = o.namespace
 	job.Metadata.Name = fmt.Sprintf("%s-%s-%s-%s-to-%s-%d", core.KindAppInstance, newAppInstance.Metadata.Name, core.EventActionUpgrade, oldAppInstance.Spec.AppRef.Version, newAppInstance.Spec.AppRef.Version, time.Now().Unix())
 	job.Spec.Exec.Type = core.JobExecTypeAnsible
 	job.Spec.Exec.Ansible.Bin = setting.AnsibleSetting.Bin
@@ -968,7 +816,7 @@ func (o AppInstanceOperator) setupUpgradeJob(oldAppInstance *v2.AppInstance, new
 	return job, nil
 }
 
-// 构建裸机任务play, 以模块切片为粒度构建
+// setupBareMetalJobPlay 构建裸机任务play, 以模块切片为粒度构建
 func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, moduleAction ModuleAction, commonInventoryStr string, extraGlobalVars map[string]interface{}, app v1.App) (v2.JobAnsiblePlay, error) {
 	var play v2.JobAnsiblePlay
 
@@ -1001,21 +849,27 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 	}
 
 	inventory := make(map[string]ansible.InventoryGroup)
+	groupVars := ansible.AppArgs{}
 
 	// 填充全局主机别名
 	hostAliases := make(map[string]string)
 	for _, hostAlias := range appInstance.Spec.Global.HostAliases {
 		hostAliases[hostAlias.Hostname] = hostAlias.IP
 	}
-	groupVars := ansible.AppArgs{}
+
+	// 填充模块主机别名
+	for _, hostAlias := range replica.HostAliases {
+		hostAliases[hostAlias.Hostname] = hostAlias.IP
+	}
+	groupVars["host_aliases"] = hostAliases
 
 	// 填充全局自定义参数
 	for _, arg := range appInstance.Spec.Global.Args {
 		groupVars.Set(arg.Name, arg.Value)
 	}
 
+	// 填充模块自定义参数
 	for _, arg := range replica.Args {
-		// 填充模块自定义参数
 		for _, appModule := range versionApp.Modules {
 			if appModule.Name == module.Name {
 				for _, appArg := range appModule.Args {
@@ -1074,7 +928,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 									hostRefs := strings.Split(v, ";")
 									inventoryGroupHosts := make(map[string]ansible.InventoryHost)
 									for _, hostRef := range hostRefs {
-										hostObj, err := o.helper.V1.Host.Get(context.TODO(), o.namespace, hostRef)
+										hostObj, err := o.helper.V1.Host.Get(context.TODO(), "", hostRef)
 										if err != nil {
 											err = e.Errorf("failed to get host %s, %s", hostRef, err.Error())
 											log.Error(err)
@@ -1108,26 +962,48 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 				}
 			}
 		}
-
-		// 填充模块主机别名
-		for _, hostAlias := range replica.HostAliases {
-			hostAliases[hostAlias.Hostname] = hostAlias.IP
-		}
 	}
-	groupVars["host_aliases"] = hostAliases
 
 	// 填充全局内置参数
 	for varName, varValue := range extraGlobalVars {
 		groupVars[varName] = varValue
 	}
+
 	// 填充模块内置参数
 	for varName, varValue := range appModule.ExtraVars {
 		groupVars[varName] = varValue
 	}
-	groupVars["package_dir"], _ = filepath.Abs(filepath.Join(setting.PackageSetting.PkgPath, versionApp.PkgRef))
-	groupVars["module_name"] = moduleAction.ModuleName
-	groupVars["replica_index"] = moduleAction.ReplicaIndex
+
+	// 填充静态配置文件路径
+	if replica.ConfigMapRef.Name != "" {
+		configObj, err := o.helper.V1.ConfigMap.Get(context.TODO(), replica.ConfigMapRef.Namespace, replica.ConfigMapRef.Name)
+		if err != nil {
+			return play, err
+		} else if configObj != nil {
+			config := configObj.(*v1.ConfigMap)
+			configFiles := []string{}
+			for path, _ := range config.Data {
+				configFiles = append(configFiles, path)
+			}
+			groupVars["config_files"] = configFiles
+		}
+	}
 	groupVars["configs_dir"] = ansible.ConfigsDir
+
+	// 填充自定义配置文件路径
+	if replica.AdditionalConfigs.ConfigMapRef.Name != "" {
+		configObj, err := o.helper.V1.ConfigMap.Get(context.TODO(), replica.AdditionalConfigs.ConfigMapRef.Namespace, replica.AdditionalConfigs.ConfigMapRef.Name)
+		if err != nil {
+			return play, err
+		} else if configObj != nil {
+			config := configObj.(*v1.ConfigMap)
+			configFiles := []string{}
+			for path, _ := range config.Data {
+				configFiles = append(configFiles, path)
+			}
+			groupVars["additional_config_files"] = configFiles
+		}
+	}
 	groupVars["additional_configs_dir"] = ansible.AdditionalConfigsDir
 
 	// 关联配置文件
@@ -1144,6 +1020,15 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 			ConfigMapRef: replica.AdditionalConfigs.ConfigMapRef,
 		},
 	})
+
+	// 填充安装包路径
+	groupVars["package_dir"], _ = filepath.Abs(filepath.Join(setting.PackageSetting.PkgPath, versionApp.PkgRef))
+
+	// 填充模块名
+	groupVars["module_name"] = moduleAction.ModuleName
+
+	// 填充切片下标
+	groupVars["replica_index"] = moduleAction.ReplicaIndex
 
 	// 填充算法实例参数
 	requestGPU := false
@@ -1209,7 +1094,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 
 	// 构建inventory和tags
 	for hostRef, action := range moduleAction.HostActionMap {
-		hostObj, err := o.helper.V1.Host.Get(context.TODO(), o.namespace, hostRef)
+		hostObj, err := o.helper.V1.Host.Get(context.TODO(), "", hostRef)
 		if err != nil {
 			err := e.Errorf("failed to get referred host %s: %s", hostRef, err.Error())
 			log.Error(err)
@@ -1247,6 +1132,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 			algorithmGPUIDs[hostRef] = gpuID
 		}
 	}
+
 	// 为算法实例设置gpu插槽序号
 	groupVars["algorithm_gpu_ids"] = algorithmGPUIDs
 	inventory[module.Name] = ansible.InventoryGroup{
@@ -1255,7 +1141,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 
 	// 当注册服务到k8s集群时，添加额外的[k8s-master]
 	if appInstance.Spec.K8sRef != "" {
-		k8sObj, err := o.helper.V1.K8sConfig.Get(context.TODO(), o.namespace, appInstance.Spec.K8sRef)
+		k8sObj, err := o.helper.V1.K8sConfig.Get(context.TODO(), core.DefaultNamespace, appInstance.Spec.K8sRef)
 		if err != nil {
 			err = e.Errorf("failed to get k8s cluster %s, %s", appInstance.Spec.K8sRef, err.Error())
 			log.Error(err)
@@ -1270,7 +1156,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 		k8sGroupHosts := make(map[string]ansible.InventoryHost)
 		for _, k8sHost := range k8s.Spec.K8SMaster.Hosts {
 			hostRef := k8sHost.ValueFrom.HostRef
-			hostObj, err := o.helper.V1.Host.Get(context.TODO(), o.namespace, hostRef)
+			hostObj, err := o.helper.V1.Host.Get(context.TODO(), "", hostRef)
 			if err != nil {
 				err = e.Errorf("failed to get host %s, %s", hostRef, err.Error())
 				log.Error(err)
@@ -1321,8 +1207,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 	return play, nil
 }
 
-// 构建k8s任务play
-// 一个play对应着应用实例中的一个模块副本的一个action，并且应用实例的每个模块可以对应着不同的应用版本
+// setupK8sJobPlay 构建k8s任务play，一个play对应着应用实例中的一个模块副本的一个action，并且应用实例的每个模块可以对应着不同的应用版本
 func (o AppInstanceOperator) setupK8sJobPlay(appInstance *v2.AppInstance, moduleName string, replicaIndex int, action string, commonInventoryStr string, extraGlobalVars map[string]interface{}, app v1.App, host *v1.Host) (v2.JobAnsiblePlay, error) {
 	var play v2.JobAnsiblePlay
 
@@ -1423,7 +1308,7 @@ func (o AppInstanceOperator) setupK8sJobPlay(appInstance *v2.AppInstance, module
 									hostRefs := strings.Split(v, ";")
 									inventoryGroupHosts := make(map[string]ansible.InventoryHost)
 									for _, hostRef := range hostRefs {
-										hostObj, err := o.helper.V1.Host.Get(context.TODO(), o.namespace, hostRef)
+										hostObj, err := o.helper.V1.Host.Get(context.TODO(), "", hostRef)
 										if err != nil {
 											err = e.Errorf("failed to get host %s, %s", hostRef, err.Error())
 											log.Error(err)
@@ -1509,7 +1394,7 @@ func (o AppInstanceOperator) setupK8sJobPlay(appInstance *v2.AppInstance, module
 	return play, nil
 }
 
-// 将应用实例与主机上的GPU绑定并返回
+// allocGPUSlot 将应用实例与主机上的GPU绑定并返回GPU插槽序号
 func (o AppInstanceOperator) allocGPUSlot(appInstance *v2.AppInstance, moduleName string, replicaIndex int, host *v1.Host, supportGPUModels []string, action string) (int, error) {
 	switch action {
 	case core.AppActionInstall:
@@ -1550,14 +1435,14 @@ func (o AppInstanceOperator) allocGPUSlot(appInstance *v2.AppInstance, moduleNam
 					Replica: replicaIndex,
 				}
 				gpu.Status.Phase = core.PhaseBound
-				if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithStatus()); err != nil {
+				if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithAllFields()); err != nil {
 					log.Error(err)
 					return -1, err
 				}
 				return gpuInfo.ID, nil
 			}
 		}
-	case core.AppActionUninstall, core.AppActionConfigure:
+	case core.AppActionUninstall, core.AppActionConfigure, core.AppActionHealthcheck:
 		// 获取已绑定的GPU
 		gpuObjs, err := o.helper.V1.GPU.List(context.TODO(), "")
 		if err != nil {
@@ -1574,8 +1459,136 @@ func (o AppInstanceOperator) allocGPUSlot(appInstance *v2.AppInstance, moduleNam
 	return -1, e.Errorf("host %s is not bound with gpu types %v", host.Metadata.Name, supportGPUModels)
 }
 
-// 应用实例升级
-func (o AppInstanceOperator) upgradeAppInstance(ctx context.Context, obj core.ApiObject, revert bool) {
+// uninstallAppInstance 卸载应用实例
+func (o AppInstanceOperator) uninstallAppInstance(ctx context.Context, appInstance *v2.AppInstance) {
+	action := core.EventActionUninstall
+
+	// 创建卸载任务
+	jobObj, err := o.setupJob(appInstance, action)
+	if err != nil {
+		log.Errorf("setup %s job failed of %s: %s", action, appInstance.GetKey(), err)
+		o.failback(appInstance, action, err.Error(), nil)
+		return
+	}
+	job := jobObj.(*v2.Job)
+
+	// 记录卸载事件开始，由于事件记录非必要流程，因此事件记录失败不会中断执行过程
+	if err := o.recordEvent(Event{
+		BaseApiObj: appInstance.BaseApiObj,
+		Action:     action,
+		Msg:        "",
+		JobRef:     job.Metadata.Name,
+		Phase:      core.PhaseWaiting,
+	}); err != nil {
+		log.Error(err)
+	}
+
+	// 侦听卸载任务的状态，并在任务执行完成时将应用实例状态置为已卸载
+	o.watchAndHandleJob(ctx, job.Metadata.Name, func(job *v2.Job) bool {
+		switch job.Status.Phase {
+		case core.PhaseCompleted:
+			// 释放算法实例GPU
+			if err := o.releaseGPU(appInstance); err != nil {
+				log.Error(err)
+				o.failback(appInstance, core.EventActionUninstall, err.Error(), job)
+				return true
+			}
+
+			// 如果初始化任务执行成功, 将应用实例状态更新为已卸载并结束任务侦听
+			appInstance.Status.SetCondition(core.ConditionTypeInstalled, core.ConditionStatusFalse)
+			appInstance.Status.UnsetCondition(core.ConditionTypeHealthy)
+			appInstance.SetStatusPhase(core.PhaseUninstalled)
+			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithAllFields()); err != nil {
+				log.Error(err)
+				return true
+			}
+
+			// 记录事件完成
+			if err := o.recordEvent(Event{
+				BaseApiObj: appInstance.BaseApiObj,
+				Action:     core.EventActionUninstall,
+				Msg:        "",
+				JobRef:     job.Metadata.Name,
+				Phase:      core.PhaseCompleted,
+			}); err != nil {
+				log.Error(err)
+			}
+			return true
+		case core.PhaseFailed:
+			o.failback(appInstance, core.EventActionUninstall, "", job)
+			return true
+		case core.PhaseWaiting, core.PhaseRunning:
+			// 处于运行中状态不做任何处理
+			return false
+		default:
+			log.Warnf("unknown status phase '%s' of job '%s'", job.Status.Phase, job.Metadata.Name)
+			return false
+		}
+	})
+}
+
+// installAppInstance 安装应用实例
+func (o AppInstanceOperator) installAppInstance(ctx context.Context, appInstance *v2.AppInstance) {
+	action := core.EventActionInstall
+
+	// 创建安装任务
+	jobObj, err := o.setupJob(appInstance, action)
+	if err != nil {
+		log.Errorf("setup %s job failed of %s: %s", action, appInstance.GetKey(), err)
+		o.failback(appInstance, action, err.Error(), nil)
+		return
+	}
+	job := jobObj.(*v2.Job)
+
+	// 记录安装事件开始，由于事件记录非必要流程，因此事件记录失败不会中断执行过程
+	if err := o.recordEvent(Event{
+		BaseApiObj: appInstance.BaseApiObj,
+		Action:     action,
+		Msg:        "",
+		JobRef:     job.Metadata.Name,
+		Phase:      core.PhaseWaiting,
+	}); err != nil {
+		log.Error(err)
+	}
+
+	// 侦听安装任务的状态，并在任务执行完成时将应用实例状态置为已就绪
+	o.watchAndHandleJob(ctx, job.Metadata.Name, func(job *v2.Job) bool {
+		switch job.Status.Phase {
+		case core.PhaseWaiting, core.PhaseRunning:
+			// 任务运行中，不做任何处理
+			return false
+		case core.PhaseCompleted:
+			// 如果任务执行成功, 将应用实例状态更新为已安装并结束任务侦听
+			appInstance.Status.SetCondition(core.ConditionTypeInstalled, core.ConditionStatusTrue)
+			appInstance.SetStatusPhase(core.PhaseInstalled)
+			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), appInstance, core.WithAllFields()); err != nil {
+				log.Error(err)
+				return true
+			}
+
+			// 记录事件完成
+			if err := o.recordEvent(Event{
+				BaseApiObj: appInstance.BaseApiObj,
+				Action:     core.EventActionInstall,
+				Msg:        "",
+				JobRef:     job.Metadata.Name,
+				Phase:      core.PhaseCompleted,
+			}); err != nil {
+				log.Error(err)
+			}
+			return true
+		case core.PhaseFailed:
+			o.failback(appInstance, core.EventActionInstall, "", job)
+			return true
+		default:
+			log.Warnf("unknown status phase '%s' of job '%s'", job.Status.Phase, job.Metadata.Name)
+			return false
+		}
+	})
+}
+
+// updateAppInstance 更新应用实例，更新动作包括：升级，回滚和配置
+func (o AppInstanceOperator) updateAppInstance(ctx context.Context, obj core.ApiObject, eventAction string) {
 	newAppInstance := obj.(*v2.AppInstance)
 
 	// 获取升级前的结构
@@ -1584,15 +1597,14 @@ func (o AppInstanceOperator) upgradeAppInstance(ctx context.Context, obj core.Ap
 		log.Error(err)
 		return
 	} else if oldObj == nil {
-		log.Errorf("not revision of %s exists", newAppInstance.GetKey())
+		log.Errorf("no revision of %s exists", newAppInstance.GetKey())
 		return
 	}
 	oldAppInstance := oldObj.(*v2.AppInstance)
 
-	eventMsg := fmt.Sprintf("从 %s 到 %s", oldAppInstance.Spec.AppRef.Version, newAppInstance.Spec.AppRef.Version)
-	eventAction := core.EventActionUpgrade
-	if revert {
-		eventAction = core.EventActionRevert
+	var eventMsg string
+	if newAppInstance.Spec.AppRef.Version != oldAppInstance.Spec.AppRef.Version {
+		eventMsg = fmt.Sprintf("从 %s 到 %s", oldAppInstance.Spec.AppRef.Version, newAppInstance.Spec.AppRef.Version)
 	}
 
 	job, err := o.setupUpgradeJob(oldAppInstance, newAppInstance)
@@ -1636,7 +1648,7 @@ func (o AppInstanceOperator) upgradeAppInstance(ctx context.Context, obj core.Ap
 			newAppInstance.Status.SetCondition(core.ConditionTypeInstalled, core.ConditionStatusTrue)
 			newAppInstance.SetStatusPhase(core.PhaseInstalled)
 
-			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), newAppInstance, core.WithStatus()); err != nil {
+			if _, err := o.helper.V2.AppInstance.Update(context.TODO(), newAppInstance, core.WithAllFields()); err != nil {
 				log.Error(err)
 			}
 			return true
@@ -1650,6 +1662,7 @@ func (o AppInstanceOperator) upgradeAppInstance(ctx context.Context, obj core.Ap
 	})
 }
 
+// releaseGPU 释放应用实例中绑定的所有GPU
 func (o AppInstanceOperator) releaseGPU(appInstance *v2.AppInstance) error {
 	gpuObjs, err := o.helper.V1.GPU.List(context.TODO(), "")
 	if err != nil {
@@ -1662,7 +1675,7 @@ func (o AppInstanceOperator) releaseGPU(appInstance *v2.AppInstance) error {
 			gpu.Spec.AppInstanceModuleRef = v1.AppInstanceModuleRef{}
 			gpu.Status.Phase = core.PhaseWaiting
 			log.Debugf("%+v", gpu)
-			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithStatus()); err != nil {
+			if _, err := o.helper.V1.GPU.Update(context.TODO(), gpu, core.WithAllFields()); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -1671,6 +1684,7 @@ func (o AppInstanceOperator) releaseGPU(appInstance *v2.AppInstance) error {
 	return nil
 }
 
+// in 判断数组中是否存在目标项
 func in(target string, array []string) bool {
 	for _, item := range array {
 		if target == item {
@@ -1680,6 +1694,7 @@ func in(target string, array []string) bool {
 	return false
 }
 
+// NewAppInstanceOperator 创建应用实例管理器
 func NewAppInstanceOperator() *AppInstanceOperator {
 	o := &AppInstanceOperator{
 		BaseOperator: NewBaseOperator(v2.NewAppInstanceRegistry()),

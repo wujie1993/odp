@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
 	"time"
 
@@ -16,53 +15,82 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/core"
 )
 
+// HookFunc 钩子方法定义
 type HookFunc func(obj core.ApiObject) error
 
+// ApiObjectRegistry 资源对象存储器接口，实现了该接口的对象可对资源对象进行数据库读写
 type ApiObjectRegistry interface {
+	// 写入一条新记录
 	Create(ctx context.Context, obj core.ApiObject, opts ...core.OpOpt) (core.ApiObject, error)
+
+	// 更新一条已存在的记录
 	Update(ctx context.Context, obj core.ApiObject, opts ...core.OpOpt) (core.ApiObject, error)
+
+	// 删除一条已存在的记录
 	Delete(ctx context.Context, namespace string, name string, opts ...core.OpOpt) (core.ApiObject, error)
+
+	// 获取一条已存在的记录
 	Get(ctx context.Context, namespace, name string, opts ...core.OpOpt) (core.ApiObject, error)
+
+	// 获取所有记录
 	List(ctx context.Context, namespace string, opts ...core.OpOpt) (core.ApiObjectList, error)
+
+	// 获取并监听所有记录的变更
 	ListWatch(ctx context.Context, namespace string) <-chan core.ApiObjectAction
 
+	// 将其他结构版本的记录转换成当前版本的结构并写入数据库
 	MigrateObjects() error
+
+	// 返回当前存储器对应的资源是否属于命名空间资源
 	Namespaced() bool
 
+	// 获取当前存储器所对应资源的分类，结构版本和类别
 	GVK() core.GVK
 }
 
-// Registry 通用实体对象存储器，实现了通用的对象实体CRUD接口
+// Registry 通用资源对象存储器，实现了通用的对象CRUD接口
 type Registry struct {
-	// 该存储器对应的实体对象类型
+	// 该存储器对应的资源对象类型
 	gvk core.GVK
-	// 该存储器对应的实体对象是否是命名空间资源, 如果不是在下方的方法中会忽略命名空间字段
+
+	// 该存储器对应的资源对象是否是命名空间资源
 	namespaced bool
 
 	// 创建与更新内容校验钩子
 	validateHook HookFunc
+
 	// 创建与更新内容填充钩子
 	mutateHook HookFunc
-	// 获取资源时填充结果钩子
+
+	// 资源获取内容装饰钩子
 	decorateHook HookFunc
 
-	// 前置操作钩子
+	// 创建前置钩子
 	preCreateHook HookFunc
+
+	// 更新前置钩子
 	preUpdateHook HookFunc
+
+	// 删除前置钩子
 	preDeleteHook HookFunc
 
-	// 后置操作钩子
+	// 创建后置钩子
 	postCreateHook HookFunc
+
+	// 更新后置钩子
 	postUpdateHook HookFunc
+
+	// 删除后置钩子
 	postDeleteHook HookFunc
 
 	// 修订历史记录器
 	revisioner Revisioner
 
+	// 默认finalizers
 	defaultFinalizers []string
 }
 
-// Create 创建单个实体对象
+// Create 创建单个资源对象
 func (r Registry) Create(ctx context.Context, obj core.ApiObject, opts ...core.OpOpt) (core.ApiObject, error) {
 	return r.createWithOpts(ctx, obj, opts...)
 }
@@ -99,7 +127,7 @@ func (r Registry) createWithOpts(ctx context.Context, obj core.ApiObject, opts .
 	if str, err := db.KV.Get(key); err != nil {
 		return nil, err
 	} else if str != "" {
-		return nil, errors.New(fmt.Sprintf("create failed: %s already exist", key))
+		return nil, e.ResourceExistsError{Key: obj.GetKey()}
 	}
 
 	// 设置元数据
@@ -140,7 +168,7 @@ func (r Registry) createWithOpts(ctx context.Context, obj core.ApiObject, opts .
 	return obj, nil
 }
 
-// Update 更新单个实体对象
+// Update 更新单个资源对象
 func (r Registry) Update(ctx context.Context, obj core.ApiObject, opts ...core.OpOpt) (core.ApiObject, error) {
 	return r.updateWithOpts(ctx, obj, opts...)
 }
@@ -199,7 +227,8 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 	metadata.Uid = oldMetadata.Uid
 	metadata.ResourceVersion = oldMetadata.ResourceVersion
 
-	if !option.WithStatus {
+	// 启用WithAllFields选项时才可以更新Spec以外（不包括Metadata）的内容，否则会被重置
+	if !option.WithAllFields {
 		// 仅更新Spec
 		spec, err := obj.SpecEncode()
 		if err != nil {
@@ -219,8 +248,8 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 		metadata.Annotations[core.AnnotationLastAppliedConfiguration] = string(oldSpec)
 		metadata.ResourceVersion++
 
-		// 设置资源状态
-		if !option.WithStatus {
+		// 启用WithAllFields选项时才可以更新Status.Phase，否则会被重置
+		if !option.WithAllFields {
 			obj.SetStatusPhase(core.PhaseWaiting)
 		}
 
@@ -234,7 +263,8 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 		return oldObj, nil
 	}
 
-	if !option.WithFinalizer {
+	// 当没有指定WithFinalizer和WithAllFields中的其中一个选项时，重置Metadata.Finalizer
+	if !option.WithFinalizer && !option.WithAllFields {
 		// 当资源处于删除状态时，重置finalizers，否则还原至更新前的finalizers
 		if obj.GetStatus().Phase != core.PhaseDeleting {
 			metadata.Finalizers = r.defaultFinalizers
@@ -265,7 +295,7 @@ func (r Registry) updateWithOpts(ctx context.Context, obj core.ApiObject, opts .
 	return obj, nil
 }
 
-// Delete 删除单个实体对象
+// Delete 删除单个资源对象
 func (r Registry) Delete(ctx context.Context, namespace string, name string, opts ...core.OpOpt) (core.ApiObject, error) {
 	return r.deleteWithOpts(ctx, namespace, name, opts...)
 }
@@ -277,12 +307,12 @@ func (r Registry) deleteWithOpts(ctx context.Context, namespace string, name str
 	// 字段校验
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
+		err := e.InvalidNamespaceError{Namespace: namespace}
 		log.Error(err)
 		return nil, err
 	}
 	if !re.MatchString(name) {
-		err := errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, name))
+		err := e.InvalidNameError{Name: name}
 		log.Error(err)
 		return nil, err
 	}
@@ -349,7 +379,7 @@ func (r Registry) deleteWithOpts(ctx context.Context, namespace string, name str
 	return obj, nil
 }
 
-// Get 获取单个实体对象
+// Get 获取单个资源对象
 func (r Registry) Get(ctx context.Context, namespace string, name string, opts ...core.OpOpt) (core.ApiObject, error) {
 	return r.getWithOpts(ctx, namespace, name, opts...)
 }
@@ -361,12 +391,12 @@ func (r Registry) getWithOpts(ctx context.Context, namespace string, name string
 	// 字段校验
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
+		err := e.InvalidNamespaceError{Namespace: namespace}
 		log.Error(err)
 		return nil, err
 	}
 	if !re.MatchString(name) {
-		err := errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, name))
+		err := e.InvalidNameError{Name: name}
 		log.Error(err)
 		return nil, err
 	}
@@ -418,7 +448,7 @@ func (r Registry) getWithOpts(ctx context.Context, namespace string, name string
 	return obj, nil
 }
 
-// List 列举单个命名空间下的所有实体对象
+// List 列举单个命名空间下的所有资源对象
 func (r Registry) List(ctx context.Context, namespace string, opts ...core.OpOpt) (core.ApiObjectList, error) {
 	return r.listWithOpts(ctx, namespace, opts...)
 }
@@ -428,11 +458,13 @@ func (r Registry) listWithOpts(ctx context.Context, namespace string, opts ...co
 	option.SetupOption(opts...)
 
 	// 字段校验
-	re := regexp.MustCompile(core.ValidNameRegex)
-	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
-		log.Error(err)
-		return nil, err
+	if namespace != "" {
+		re := regexp.MustCompile(core.ValidNameRegex)
+		if r.namespaced && !re.MatchString(namespace) {
+			err := e.InvalidNamespaceError{Namespace: namespace}
+			log.Error(err)
+			return nil, err
+		}
 	}
 
 	// 获取存储键
@@ -482,14 +514,16 @@ func (r Registry) listWithOpts(ctx context.Context, namespace string, opts ...co
 	return list, nil
 }
 
-// Watch 侦听实体对象的变动, 当name为空时，表示侦听命名空间下的所有实体对象
+// Watch 侦听资源对象的变动, 当name为空时，表示侦听命名空间下的所有资源对象
 func (r Registry) Watch(ctx context.Context, namespace string, name string) <-chan core.ApiObjectAction {
 	// 字段校验
-	re := regexp.MustCompile("^[a-zA-Z0-9_-]{1,256}$")
-	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
-		log.Error(err)
-		return nil
+	if namespace != "" {
+		re := regexp.MustCompile(core.ValidNameRegex)
+		if r.namespaced && !re.MatchString(namespace) {
+			err := e.InvalidNamespaceError{Namespace: namespace}
+			log.Error(err)
+			return nil
+		}
 	}
 
 	// 获取存储键
@@ -558,17 +592,17 @@ func (r Registry) Watch(ctx context.Context, namespace string, name string) <-ch
 	return objActionChan
 }
 
-// GetWatch 侦听单个实体对象的变动
+// GetWatch 侦听单个资源对象的变动
 func (r Registry) GetWatch(ctx context.Context, namespace string, name string) <-chan core.ApiObjectAction {
 	// 字段校验
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
+		err := e.InvalidNamespaceError{Namespace: namespace}
 		log.Error(err)
 		return nil
 	}
 	if !re.MatchString(name) {
-		err := errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, name))
+		err := e.InvalidNameError{Name: name}
 		log.Error(err)
 		return nil
 	}
@@ -647,14 +681,16 @@ func (r Registry) GetWatch(ctx context.Context, namespace string, name string) <
 	return objActionChan
 }
 
-// ListWatch 列举单个命名空间下的所有实体对象变动
+// ListWatch 列举单个命名空间下的所有资源对象变动
 func (r Registry) ListWatch(ctx context.Context, namespace string) <-chan core.ApiObjectAction {
 	// 字段校验
-	re := regexp.MustCompile(core.ValidNameRegex)
-	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
-		log.Error(err)
-		return nil
+	if namespace != "" {
+		re := regexp.MustCompile(core.ValidNameRegex)
+		if r.namespaced && !re.MatchString(namespace) {
+			err := e.InvalidNamespaceError{Namespace: namespace}
+			log.Error(err)
+			return nil
+		}
 	}
 
 	// 获取存储键
@@ -729,17 +765,17 @@ func (r Registry) ListWatch(ctx context.Context, namespace string) <-chan core.A
 	return objActionChan
 }
 
-// UpdateStatus 更新单个实体对象的.Status
+// UpdateStatus 更新单个资源对象的Status
 func (r Registry) UpdateStatus(namespace string, name string, status core.Status) (core.ApiObject, error) {
 	// 字段校验
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
+		err := e.InvalidNamespaceError{Namespace: namespace}
 		log.Error(err)
 		return nil, err
 	}
 	if !re.MatchString(name) {
-		err := errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, name))
+		err := e.InvalidNameError{Name: name}
 		log.Error(err)
 		return nil, err
 	}
@@ -753,7 +789,7 @@ func (r Registry) UpdateStatus(namespace string, name string, status core.Status
 		return nil, err
 	}
 	if obj == nil {
-		return nil, errors.New(fmt.Sprintf("update failed: %s not found", key))
+		return nil, e.Errorf("update failed: %s not found", key)
 	}
 
 	obj.SetUpdateTime(time.Now())
@@ -772,17 +808,17 @@ func (r Registry) UpdateStatus(namespace string, name string, status core.Status
 	return obj, nil
 }
 
-// UpdateStatusPhase 更新单个实体对象的.Status.Phase
+// UpdateStatusPhase 更新单个资源对象的Status.Phase
 func (r Registry) UpdateStatusPhase(namespace string, name string, phase string) (core.ApiObject, error) {
 	// 字段校验
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(namespace) {
-		err := errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, namespace))
+		err := e.InvalidNamespaceError{Namespace: namespace}
 		log.Error(err)
 		return nil, err
 	}
 	if !re.MatchString(name) {
-		err := errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, name))
+		err := e.InvalidNameError{Name: name}
 		log.Error(err)
 		return nil, err
 	}
@@ -796,7 +832,7 @@ func (r Registry) UpdateStatusPhase(namespace string, name string, phase string)
 		return nil, err
 	}
 	if obj == nil {
-		return nil, errors.New(fmt.Sprintf("update failed: %s not found", key))
+		return nil, e.Errorf("update failed: %s not found", key)
 	}
 
 	obj.SetUpdateTime(time.Now())
@@ -815,7 +851,7 @@ func (r Registry) UpdateStatusPhase(namespace string, name string, phase string)
 	return obj, nil
 }
 
-// MigrateObjects 将所有实体对象转换为当前存储器所指定的版本
+// MigrateObjects 将所有资源对象转换为当前存储器所指定的版本
 func (r Registry) MigrateObjects() error {
 	var key string
 
@@ -869,11 +905,12 @@ func (r Registry) MigrateObjects() error {
 			log.Debugf("migrate %s from version %s to %s", obj.GetKey(), metaType.ApiVersion, r.gvk.ApiVersion)
 		} else {
 			// 对比资源修复前与修复后的内容是否发生变化，有变化则更新为修复后的内容
+
+			// 结构版本相同时，如果无需填充数据，则跳过
 			if hash == obj.Sha256() {
 				continue
 			}
 
-			// 结构版本相同时，如果无需填充数据，则跳过
 			log.Debugf("update %s", obj.GetKey())
 		}
 
@@ -954,16 +991,18 @@ func (r Registry) Namespaced() bool {
 }
 
 func (r Registry) getKey(namespace string, name string) string {
-	key := core.RegistryPrefix + "/" + r.gvk.Kind + "s"
+	key := core.RegistryPrefix + "/" + r.gvk.Kind + "s/"
 	if r.namespaced {
 		if namespace != "" {
-			key += "/" + namespace
-		} else {
-			key += "/" + core.DefaultNamespace
+			key += namespace + "/"
+			if name != "" {
+				key += name
+			}
 		}
-	}
-	if name != "" {
-		key += "/" + name
+	} else {
+		if name != "" {
+			key += name
+		}
 	}
 	return key
 }
@@ -980,14 +1019,15 @@ func (r Registry) commonValidate(obj core.ApiObject) error {
 	}
 	re := regexp.MustCompile(core.ValidNameRegex)
 	if r.namespaced && !re.MatchString(metadata.Namespace) {
-		return errors.New(fmt.Sprintf("invalid %s namespace '%s'", r.gvk.Kind, metadata.Namespace))
+		return e.InvalidNamespaceError{Namespace: metadata.Namespace}
 	}
 	if !re.MatchString(metadata.Name) {
-		return errors.New(fmt.Sprintf("invalid %s name '%s'", r.gvk.Kind, metadata.Name))
+		return e.InvalidNameError{Name: metadata.Name}
 	}
 	return nil
 }
 
+// NewRegistry 创建一个通用资源对象存储器
 func NewRegistry(gvk core.GVK, namespaced bool) Registry {
 	return Registry{
 		gvk:        gvk,

@@ -117,10 +117,10 @@ func GetHelper() Helper {
 // New 创建一个新的实体对象
 func New(kind string) (core.ApiObject, error) {
 	switch kind {
-	{{ range .ApiObjects }}
+	{{- range .ApiObjects }}
 	case core.Kind{{ . }}:
 		return New{{ . }}(), nil
-	{{ end }}
+	{{- end }}
 	default:
 		return nil, e.Errorf("unknown kind of %s within {{ .Package }}", kind)
 	}

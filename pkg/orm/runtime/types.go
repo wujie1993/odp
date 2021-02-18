@@ -1,6 +1,9 @@
 package runtime
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/wujie1993/waves/pkg/orm/core"
@@ -193,4 +196,71 @@ type GPUInfo struct {
 type HostPlugin struct {
 	AppInstanceRef AppInstanceRef
 	AppRef         AppRef
+}
+
+type ConfigMap struct {
+	core.BaseRuntimeObj `json:",inline" yaml:",inline"`
+	Spec                map[string]string `json:"spec" yaml:"spec"`
+}
+
+func (obj AppInstance) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+func (obj *AppInstance) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+func (obj AppInstance) SpecHash() string {
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func (obj Host) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+func (obj *Host) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+func (obj Host) SpecHash() string {
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func (obj Job) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec)
+}
+
+func (obj *Job) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec)
+}
+
+func (obj Job) SpecHash() string {
+	data, _ := json.Marshal(&obj.Spec)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func NewAppInstance() *AppInstance {
+	appInstance := new(AppInstance)
+	appInstance.Init("", core.KindAppInstance)
+	appInstance.Spec.LivenessProbe.InitialDelaySeconds = 10
+	appInstance.Spec.LivenessProbe.PeriodSeconds = 30
+	appInstance.Spec.LivenessProbe.TimeoutSeconds = 30
+	return appInstance
+}
+
+func NewHost() *Host {
+	host := new(Host)
+	host.Init("", core.KindHost)
+	return host
+}
+
+func NewJob() *Job {
+	job := new(Job)
+	job.Init("", core.KindJob)
+	job.Spec.TimeoutSeconds = core.JobDefaultTimeoutSeconds
+	job.Spec.FailureThreshold = core.JobDefaultFailureThreshold
+	return job
 }

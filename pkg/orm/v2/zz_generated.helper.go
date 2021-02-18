@@ -31,16 +31,12 @@ func GetHelper() Helper {
 // New 创建一个新的实体对象
 func New(kind string) (core.ApiObject, error) {
 	switch kind {
-
 	case core.KindAppInstance:
 		return NewAppInstance(), nil
-
 	case core.KindHost:
 		return NewHost(), nil
-
 	case core.KindJob:
 		return NewJob(), nil
-
 	default:
 		return nil, e.Errorf("unknown kind of %s within v2", kind)
 	}
