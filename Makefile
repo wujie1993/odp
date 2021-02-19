@@ -77,6 +77,14 @@ test:
 image:
 	docker build . -t waves:latest	
 
+test-env: test-env-centos7 test-env-ubuntu20.04
+
+test-env-centos7:
+	docker build ./tests/envs/ -t wavesio/test-env:centos7 -f ./tests/envs/Dockerfile-centos7
+
+test-env-ubuntu20.04:
+	docker build ./tests/envs/ -t wavesio/test-env:ubuntu20.04 -f ./tests/envs/Dockerfile-ubuntu20.04
+
 tool:
 	go vet ./...; true
 	gofmt -w .

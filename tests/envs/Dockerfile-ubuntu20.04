@@ -1,0 +1,6 @@
+FROM ubuntu:20.04
+
+RUN apt-get update
+RUN ssh-keygen -A
+RUN echo "waves123" | passwd --stdin root
+CMD SSH_USE_STRONG_RNG=0 /usr/sbin/sshd -D
