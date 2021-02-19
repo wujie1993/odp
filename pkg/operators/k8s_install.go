@@ -94,7 +94,7 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			params.Groups = append(params.Groups, Group{
 				Name: v,
 				Hosts: []Host{
-					Host{
+					{
 						Addr: master_result.(*v1.Host).Spec.SSH.Host,
 						User: master_result.(*v1.Host).Spec.SSH.User,
 						Pass: master_result.(*v1.Host).Spec.SSH.Password,
@@ -187,8 +187,8 @@ func (c *K8sInstallOperator) handleK8s(ctx context.Context, obj core.ApiObject) 
 			job.Spec.Exec.Type = core.JobExecTypeAnsible
 			job.Spec.Exec.Ansible.Bin = "/usr/bin/ansible-playbook"
 			job.Spec.Exec.Ansible.Inventories = []v1.AnsibleInventory{
-				v1.AnsibleInventory{Value: commonInventoryStr},
-				v1.AnsibleInventory{Value: inventoryBuf.String()},
+				{Value: commonInventoryStr},
+				{Value: inventoryBuf.String()},
 			}
 			log.Debug("inventory", job.Spec.Exec.Ansible.Inventories)
 			job.Spec.Exec.Ansible.Envs = []string{
@@ -378,8 +378,8 @@ func (c *K8sInstallOperator) deleteK8s(ctx context.Context, k8s *v1.K8sConfig, i
 	job.Spec.Exec.Type = core.JobExecTypeAnsible
 	job.Spec.Exec.Ansible.Bin = "/usr/bin/ansible-playbook"
 	job.Spec.Exec.Ansible.Inventories = []v1.AnsibleInventory{
-		v1.AnsibleInventory{Value: commonInventoryStr},
-		v1.AnsibleInventory{Value: inventoryBuf.String()},
+		{Value: commonInventoryStr},
+		{Value: inventoryBuf.String()},
 	}
 	// job.Spec.Exec.Ansible.Envs = []string{
 	// 	"act=install",
@@ -591,8 +591,8 @@ func (c *K8sInstallOperator) handleK8sLabel(ctx context.Context, k8s *v1.K8sConf
 	job.Spec.Exec.Type = core.JobExecTypeAnsible
 	job.Spec.Exec.Ansible.Bin = "/usr/bin/ansible-playbook"
 	job.Spec.Exec.Ansible.Inventories = []v1.AnsibleInventory{
-		v1.AnsibleInventory{Value: commonInventoryStr},
-		v1.AnsibleInventory{Value: inventoryBuf.String()},
+		{Value: commonInventoryStr},
+		{Value: inventoryBuf.String()},
 	}
 	//判断删除还是新增标签
 	var action string

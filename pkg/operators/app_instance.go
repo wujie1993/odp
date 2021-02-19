@@ -585,7 +585,7 @@ func (o *AppInstanceOperator) setupJob(obj core.ApiObject, action string) (core.
 		}
 
 		for _, module := range appInstance.Spec.Modules {
-			for replicaIndex, _ := range module.Replicas {
+			for replicaIndex := range module.Replicas {
 				play, err := o.setupK8sJobPlay(appInstance, module.Name, replicaIndex, action, commonInventoryStr, extraGlobalVars, *app, host)
 				if err != nil {
 					log.Error(err)
@@ -982,7 +982,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 		} else if configObj != nil {
 			config := configObj.(*v1.ConfigMap)
 			configFiles := []string{}
-			for path, _ := range config.Data {
+			for path := range config.Data {
 				configFiles = append(configFiles, path)
 			}
 			groupVars["config_files"] = configFiles
@@ -998,7 +998,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 		} else if configObj != nil {
 			config := configObj.(*v1.ConfigMap)
 			configFiles := []string{}
-			for path, _ := range config.Data {
+			for path := range config.Data {
 				configFiles = append(configFiles, path)
 			}
 			groupVars["additional_config_files"] = configFiles
@@ -1185,7 +1185,7 @@ func (o AppInstanceOperator) setupBareMetalJobPlay(appInstance *v2.AppInstance, 
 	groupVarsData, _ := yaml.Marshal(groupVars)
 	inventoryStr, _ := ansible.RenderInventory(inventory)
 	playbookStr, _ := ansible.RenderPlaybook([]ansible.Playbook{
-		ansible.Playbook{
+		{
 			Hosts:       []string{module.Name},
 			Roles:       appModule.IncludeRoles,
 			IncludeVars: []string{"group_vars.yml"},
@@ -1232,9 +1232,9 @@ func (o AppInstanceOperator) setupK8sJobPlay(appInstance *v2.AppInstance, module
 	}
 
 	inventory := map[string]ansible.InventoryGroup{
-		"ansible.ANSIBLE_GROUP_K8S_MASTER": ansible.InventoryGroup{
+		"ansible.ANSIBLE_GROUP_K8S_MASTER": {
 			Hosts: map[string]ansible.InventoryHost{
-				host.Metadata.Name: ansible.InventoryHost{
+				host.Metadata.Name: {
 					"ansible_ssh_host": host.Spec.SSH.Host,
 					"ansible_ssh_pass": host.Spec.SSH.Password,
 					"ansible_ssh_port": host.Spec.SSH.Port,

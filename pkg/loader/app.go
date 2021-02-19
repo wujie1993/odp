@@ -152,7 +152,7 @@ func LoadApps(categories Categories, path string) error {
 		// 记录应用更新前的哈希值
 		appsHash[app.Metadata.Name] = app.SpecHash()
 		// 将app中的所有版本可用性都置为false
-		for versionAppIndex, _ := range app.Spec.Versions {
+		for versionAppIndex := range app.Spec.Versions {
 			app.Spec.Versions[versionAppIndex].Enabled = false
 		}
 	}

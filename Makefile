@@ -48,10 +48,6 @@ gen-orm:
 	@go run cmd/codegen/codegen.go orm --pkg-path=./pkg/orm/v1
 	@go run cmd/codegen/codegen.go orm --pkg-path=./pkg/orm/v2
 
-	gofmt -w -s ./pkg/orm/runtime
-	gofmt -w -s ./pkg/orm/v1
-	gofmt -w -s ./pkg/orm/v2
-
 # 生成客户端库代码
 gen-client:
 	rm -f pkg/client/v1/zz_generated*
@@ -59,12 +55,10 @@ gen-client:
 
 	@go run cmd/codegen/codegen.go client -i pkg/orm/v1/ -o pkg/client/v1/
 	@go run cmd/codegen/codegen.go client -i pkg/orm/v2/ -o pkg/client/v2/
-	
-	gofmt -w -s ./pkg/client/v1
-	gofmt -w -s ./pkg/client/v2
 
 # 生成项目代码！！！注意！！！在提交代码前先执行代码生成
 gen: gen-orm gen-client
+	gofmt -w -s ./
 
 # 运行服务端
 run: gen doc

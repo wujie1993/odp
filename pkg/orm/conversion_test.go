@@ -21,14 +21,14 @@ func TestConvert(t *testing.T) {
 		Version: "7.2.1",
 	}
 	appInstance.Spec.Modules = []v1.AppInstanceModule{
-		v1.AppInstanceModule{
+		{
 			HostRefs: []string{"node-25", "node-32", "node-99"},
 			Args: []v1.AppInstanceArgs{
-				v1.AppInstanceArgs{
+				{
 					Name:  "es_data_path",
 					Value: "/opt/es/data",
 				},
-				v1.AppInstanceArgs{
+				{
 					Name:  "es_log_path",
 					Value: "/opt/es/logs",
 				},

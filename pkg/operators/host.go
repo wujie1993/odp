@@ -225,7 +225,7 @@ func (c *HostOperator) handleHost(ctx context.Context, obj core.ApiObject) error
 		job.Spec.Exec.Type = core.JobExecTypeAnsible
 		job.Spec.Exec.Ansible.Bin = setting.AnsibleSetting.Bin
 		job.Spec.Exec.Ansible.Inventories = []v1.AnsibleInventory{
-			v1.AnsibleInventory{
+			{
 				ValueFrom: v1.ValueFrom{
 					ConfigMapRef: v1.ConfigMapRef{
 						Namespace: configMap.Metadata.Namespace,

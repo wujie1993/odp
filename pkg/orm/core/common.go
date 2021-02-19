@@ -170,10 +170,10 @@ var (
 
 	// 资源简称，便于命令行使用资源
 	kindShortNamesMap = map[string][]string{
-		KindAppInstance: []string{"ins"},
-		KindConfigMap:   []string{"cm"},
-		KindHost:        []string{"node", "nodes"},
-		KindK8sConfig:   []string{"k8s"},
+		KindAppInstance: {"ins"},
+		KindConfigMap:   {"cm"},
+		KindHost:        {"node", "nodes"},
+		KindK8sConfig:   {"k8s"},
 	}
 
 	// 资源类型描述
