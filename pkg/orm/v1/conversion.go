@@ -13,9 +13,9 @@ import (
 var conversion core.Conversion
 
 func init() {
+	// 实例化并注册v1结构与运行时结构的互相转换方法
 	conversion = core.NewConversion()
 
-	// 注册v1版本结构与运行时结构互相转换方法
 	registerConversionFunc(core.VK{
 		ApiVersion: ApiVersion,
 		Kind:       core.KindAppInstance,
@@ -59,6 +59,15 @@ func init() {
 	}, convertCoreRuntimeHostToCoreV1Host)
 }
 
+func newGVK(kind string) core.GVK {
+	return core.GVK{
+		Group:      core.Group,
+		ApiVersion: ApiVersion,
+		Kind:       kind,
+	}
+}
+
+// registerConversionFunc 注册结构转换方法
 func registerConversionFunc(srcVK core.VK, dstVK core.VK, convertFunc core.ConvertFunc) {
 	conversion.SetConversionFunc(core.GVK{
 		Group:      core.Group,
@@ -93,6 +102,7 @@ func Convert(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	return convertFunc(srcObj, dstGVK)
 }
 
+// convertCoreV1AppInstanceToCoreRuntimeAppInstance 将应用实例v1结构转换为运行时结构
 func convertCoreV1AppInstanceToCoreRuntimeAppInstance(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcAppInstance, ok := srcObj.(*AppInstance)
 	if !ok {
@@ -122,6 +132,7 @@ func convertCoreV1AppInstanceToCoreRuntimeAppInstance(srcObj core.ApiObject, dst
 	return dstAppInstance, nil
 }
 
+// convertCoreRuntimeAppInstanceToCoreV1AppInstance 将应用实例运行时结构转换为v1结构
 func convertCoreRuntimeAppInstanceToCoreV1AppInstance(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcAppInstance, ok := srcObj.(*runtime.AppInstance)
 	if !ok {
@@ -151,6 +162,7 @@ func convertCoreRuntimeAppInstanceToCoreV1AppInstance(srcObj core.ApiObject, dst
 	return dstAppInstance, nil
 }
 
+// convertCoreV1JobToCoreRuntimeJob 将任务v1结构转换为运行时结构
 func convertCoreV1JobToCoreRuntimeJob(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcJob, ok := srcObj.(*Job)
 	if !ok {
@@ -215,6 +227,7 @@ func convertCoreV1JobToCoreRuntimeJob(srcObj core.ApiObject, dstGVK core.GVK) (c
 	return dstObj, nil
 }
 
+// convertCoreRuntimeJobToCoreV1Job 将任务运行时结构转换为v1结构
 func convertCoreRuntimeJobToCoreV1Job(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcJob, ok := srcObj.(*runtime.Job)
 	if !ok {
@@ -271,6 +284,7 @@ func convertCoreRuntimeJobToCoreV1Job(srcObj core.ApiObject, dstGVK core.GVK) (c
 	return dstObj, nil
 }
 
+// convertCoreV1HostToCoreRuntimeHost 将主机v1结构转换为运行时结构
 func convertCoreV1HostToCoreRuntimeHost(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcJob, ok := srcObj.(*Host)
 	if !ok {
@@ -337,6 +351,7 @@ func convertCoreV1HostToCoreRuntimeHost(srcObj core.ApiObject, dstGVK core.GVK) 
 	return dstObj, nil
 }
 
+// convertCoreRuntimeHostToCoreV1Host 将主机运行时结构转换为v1结构
 func convertCoreRuntimeHostToCoreV1Host(srcObj core.ApiObject, dstGVK core.GVK) (core.ApiObject, error) {
 	srcJob, ok := srcObj.(*runtime.Host)
 	if !ok {

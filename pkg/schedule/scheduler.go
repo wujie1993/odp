@@ -104,18 +104,17 @@ func (s *Scheduler) handleJob(job *v2.Job, worker *Worker) {
 		if _, err := s.helper.V2.Job.UpdateStatusPhase(job.Metadata.Namespace, job.Metadata.Name, core.PhaseRunning); err != nil {
 			log.Println(err)
 		}
-		ctx, cancel := context.WithTimeout(s.ctx, job.Spec.TimeoutSeconds*time.Second)
-		s.workers.Set(key, worker)
-		s.cancels.Set(key, cancel)
-
-		defer func() {
-			s.workers.Unset(key)
-			s.cancels.Unset(key)
-		}()
 
 		var err error
 		for retry := 0; retry < job.Spec.FailureThreshold; retry++ {
-			if err = worker.Run(ctx, job); err != nil {
+			ctx, cancel := context.WithTimeout(s.ctx, job.Spec.TimeoutSeconds*time.Second)
+			s.workers.Set(key, worker)
+			s.cancels.Set(key, cancel)
+
+			err = worker.Run(ctx, job)
+			s.workers.Unset(key)
+			s.cancels.Unset(key)
+			if err != nil {
 				log.Error(err)
 				continue
 			}
@@ -124,7 +123,7 @@ func (s *Scheduler) handleJob(job *v2.Job, worker *Worker) {
 		if err != nil {
 			job.Status.SetCondition(core.ConditionTypeRun, err.Error())
 			job.SetStatusPhase(core.PhaseFailed)
-			if _, err := s.helper.V2.Job.Update(context.TODO(), job, core.WithStatus()); err != nil {
+			if _, err := s.helper.V2.Job.Update(context.TODO(), job, core.WithAllFields()); err != nil {
 				log.Println(err)
 			}
 			return

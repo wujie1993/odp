@@ -5,7 +5,7 @@ type OpOpt func(o *Option)
 type Option struct {
 	WithFinalizer   bool
 	WithSync        bool
-	WithStatus      bool
+	WithAllFields   bool
 	WhenSpecChanged bool
 }
 
@@ -15,9 +15,9 @@ func (o *Option) SetupOption(opts ...OpOpt) {
 	}
 }
 
-func WithStatus() OpOpt {
+func WithAllFields() OpOpt {
 	return func(o *Option) {
-		o.WithStatus = true
+		o.WithAllFields = true
 	}
 }
 

@@ -26,6 +26,7 @@ const (
 	AppActionConfigure   = "configure"
 	AppActionHealthcheck = "healthcheck"
 	AppActionUninstall   = "uninstall"
+	AppActionUpdate      = "update"
 	AppActionUpgrade     = "upgrade"
 	AppActionRevert      = "revert"
 
@@ -37,7 +38,7 @@ const (
 
 	DefaultNamespace = "default"
 
-	RegistryPrefix = "/registry"
+	RegistryPrefix = "/prophet"
 
 	KindApp         = "app"
 	KindAppInstance = "appInstance"
@@ -85,6 +86,7 @@ const (
 	FinalizerCleanRefEvent     = "CleanRefEvent"
 	FinalizerCleanRefConfigMap = "CleanRefConfigMap"
 	FinalizerCleanRevision     = "CleanRevision"
+	FinalizerCleanHostPlugin   = "CleanHostPlugin"
 
 	JobExecTypeAnsible         = "ansible"
 	JobDefaultFailureThreshold = 1
@@ -100,7 +102,7 @@ const (
 	PhaseBound         = "Bound"
 	PhaseCompleted     = "Completed"
 	PhaseConfiguring   = "Configuring"
-	PhaseUpgradeing    = "Upgrading"
+	PhaseUpgrading     = "Upgrading"
 	PhaseReverting     = "Reverting"
 	PhaseConnecting    = "Connecting"
 	PhaseCrashing      = "Crashing"

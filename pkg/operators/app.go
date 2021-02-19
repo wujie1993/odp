@@ -9,22 +9,24 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/v1"
 )
 
-// AppOperator 应用控制器
+// AppOperator 应用管理器
 type AppOperator struct {
 	BaseOperator
 }
 
+// handleAppInstance 处理应用实例的变更操作
 func (o *AppOperator) handleApp(ctx context.Context, obj core.ApiObject) error {
 	app := obj.(*v1.App)
 	log.Tracef("%s '%s' is %s", app.Kind, app.GetKey(), app.Status.Phase)
 
 	switch app.Status.Phase {
 	case core.PhaseDeleting:
-		return o.handleDeleting(ctx, obj)
+		o.delete(ctx, obj)
 	}
 	return nil
 }
 
+// finalizeApp 级联清除应用的关联资源
 func (o AppOperator) finalizeApp(ctx context.Context, obj core.ApiObject) error {
 	app := obj.(*v1.App)
 
@@ -48,26 +50,11 @@ func (o AppOperator) finalizeApp(ctx context.Context, obj core.ApiObject) error 
 				}
 			}
 		}
-	case core.FinalizerCleanRefEvent:
-		// 同步删除关联的事件
-		eventList, err := o.helper.V1.Event.List(context.TODO(), "")
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		for _, eventObj := range eventList {
-			event := eventObj.(*v1.Event)
-			if event.Spec.ResourceRef.Kind == core.KindApp && event.Spec.ResourceRef.Name == app.Metadata.Name {
-				if _, err := o.helper.V1.Event.Delete(context.TODO(), "", event.Metadata.Name, core.WithSync()); err != nil {
-					log.Error(err)
-					return err
-				}
-			}
-		}
 	}
 	return nil
 }
 
+// NewAppOperator 创建应用管理器
 func NewAppOperator() *AppOperator {
 	o := &AppOperator{
 		BaseOperator: NewBaseOperator(v1.NewAppRegistry()),

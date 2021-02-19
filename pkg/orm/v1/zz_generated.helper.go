@@ -51,46 +51,32 @@ func GetHelper() Helper {
 // New 创建一个新的实体对象
 func New(kind string) (core.ApiObject, error) {
 	switch kind {
-
 	case core.KindApp:
 		return NewApp(), nil
-
 	case core.KindAppInstance:
 		return NewAppInstance(), nil
-
 	case core.KindAudit:
 		return NewAudit(), nil
-
 	case core.KindConfigMap:
 		return NewConfigMap(), nil
-
 	case core.KindEvent:
 		return NewEvent(), nil
-
 	case core.KindGPU:
 		return NewGPU(), nil
-
 	case core.KindHost:
 		return NewHost(), nil
-
 	case core.KindJob:
 		return NewJob(), nil
-
 	case core.KindK8sConfig:
 		return NewK8sConfig(), nil
-
 	case core.KindNamespace:
 		return NewNamespace(), nil
-
 	case core.KindPkg:
 		return NewPkg(), nil
-
 	case core.KindProject:
 		return NewProject(), nil
-
 	case core.KindRevision:
 		return NewRevision(), nil
-
 	default:
 		return nil, e.Errorf("unknown kind of %s within v1", kind)
 	}

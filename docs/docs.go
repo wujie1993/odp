@@ -6614,6 +6614,26 @@ var doc = `{
         {
             "description": "事件",
             "name": "Event"
+        },
+        {
+            "description": "显卡",
+            "name": "GPU"
+        },
+        {
+            "description": "命名空间",
+            "name": "Namespace"
+        },
+        {
+            "description": "项目",
+            "name": "Project"
+        },
+        {
+            "description": "修订历史",
+            "name": "Revision"
+        },
+        {
+            "description": "拓扑",
+            "name": "Topology"
         }
     ]
 }`

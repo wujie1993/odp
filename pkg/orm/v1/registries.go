@@ -3,129 +3,66 @@ package v1
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"path"
 	"text/template"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/wujie1993/waves/pkg/e"
 	"github.com/wujie1993/waves/pkg/orm/core"
 	"github.com/wujie1993/waves/pkg/orm/registry"
+	"github.com/wujie1993/waves/pkg/util"
 )
 
-type AppInstance struct {
-	core.BaseApiObj `json:",inline" yaml:",inline"`
-	Spec            AppInstanceSpec
+// AppRegistry 应用存储器
+// +namespaced=true
+type AppRegistry struct {
+	registry.Registry
 }
 
-type AppInstanceSpec struct {
-	Category      string
-	AppRef        AppRef
-	Action        string
-	LivenessProbe LivenessProbe
-	Modules       []AppInstanceModule
-	Global        AppInstanceGlobal
-	K8sRef        string
-}
-
-type AppInstanceGlobal struct {
-	Args         []AppInstanceArgs
-	HostAliases  []AppInstanceHostAliases
-	ConfigMapRef ConfigMapRef
-}
-
-type AppInstanceModule struct {
-	Name              string
-	Notes             string
-	AppVersion        string
-	Args              []AppInstanceArgs
-	HostRefs          []string
-	HostAliases       []AppInstanceHostAliases
-	ConfigMapRef      ConfigMapRef
-	AdditionalConfigs AdditionalConfigs
-}
-
-type AppInstanceHostAliases struct {
-	Hostname string
-	IP       string
-}
-
-type AppInstanceArgs struct {
-	Name  string
-	Value interface{}
-}
-
-func (s AppInstanceSpec) GetModuleArgValue(moduleName, argName string) (interface{}, bool) {
-	for _, module := range s.Modules {
-		if module.Name == moduleName {
-			for _, arg := range module.Args {
-				if arg.Name == argName {
-					return arg.Value, true
-				}
-			}
+// appMutate 自定义应用内容写入填充逻辑
+func appMutate(obj core.ApiObject) error {
+	app := obj.(*App)
+	if app.Spec.Platform == "" && len(app.Spec.Versions) > 0 {
+		app.Spec.Platform = app.Spec.Versions[0].Platform
+	}
+	for index, versionApp := range app.Spec.Versions {
+		if versionApp.LivenessProbe.InitialDelaySeconds < 0 {
+			app.Spec.Versions[index].LivenessProbe.InitialDelaySeconds = 10
+		}
+		if versionApp.LivenessProbe.PeriodSeconds < 30 {
+			app.Spec.Versions[index].LivenessProbe.PeriodSeconds = 60
+		}
+		if versionApp.LivenessProbe.TimeoutSeconds < 30 {
+			app.Spec.Versions[index].LivenessProbe.TimeoutSeconds = 60
 		}
 	}
-	return nil, false
+	return nil
 }
 
-func (s *AppInstanceSpec) SetModuleArgValue(moduleName, argName string, argValue interface{}) bool {
-	for moduleIndex, module := range s.Modules {
-		if module.Name == moduleName {
-			for argIndex, arg := range module.Args {
-				if arg.Name == argName {
-					s.Modules[moduleIndex].Args[argIndex].Value = argValue
-					return true
-				}
-			}
-		}
+// NewAppRegistry 实例化应用存储器
+func NewAppRegistry() AppRegistry {
+	app := AppRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindApp), true),
 	}
-	return false
-}
-
-func (s AppInstanceSpec) GetGlobalArgValue(argName string) (interface{}, bool) {
-	for _, arg := range s.Global.Args {
-		if arg.Name == argName {
-			return arg.Value, true
-		}
-	}
-	return nil, false
-}
-
-func (s *AppInstanceSpec) SetGlobalArgValue(argName string, argValue interface{}) bool {
-	for argIndex, arg := range s.Global.Args {
-		if arg.Name == argName {
-			s.Global.Args[argIndex].Value = argValue
-			return true
-		}
-	}
-	return false
-}
-
-func (obj AppInstance) SpecEncode() ([]byte, error) {
-	return json.Marshal(&obj.Spec)
-}
-
-func (obj *AppInstance) SpecDecode(data []byte) error {
-	return json.Unmarshal(data, &obj.Spec)
-}
-
-func (obj AppInstance) SpecHash() string {
-	for moduleIndex := range obj.Spec.Modules {
-		obj.Spec.Modules[moduleIndex].Notes = ""
-	}
-	obj.Spec.LivenessProbe = LivenessProbe{}
-	data, _ := json.Marshal(&obj.Spec)
-	return fmt.Sprintf("%x", sha256.Sum256(data))
+	app.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefConfigMap,
+	})
+	app.SetMutateHook(appMutate)
+	return app
 }
 
 // +namespaced=true
+// AppInstanceRegistry 应用实例存储器
 type AppInstanceRegistry struct {
 	registry.Registry
 }
 
+// appInstancePostCreate 自定义应用实例创建后逻辑
 func appInstancePostCreate(obj core.ApiObject) error {
 	hostRegistry := NewHostRegistry()
 
@@ -155,7 +92,7 @@ func appInstancePostCreate(obj core.ApiObject) error {
 				AppRef: appInstance.Spec.AppRef,
 			})
 
-			if _, err := hostRegistry.Update(context.TODO(), host, core.WithStatus()); err != nil {
+			if _, err := hostRegistry.Update(context.TODO(), host, core.WithAllFields()); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -186,7 +123,7 @@ func appInstancePostCreate(obj core.ApiObject) error {
 				},
 			})
 
-			if _, err := hostRegistry.Update(context.TODO(), host, core.WithStatus()); err != nil {
+			if _, err := hostRegistry.Update(context.TODO(), host, core.WithAllFields()); err != nil {
 				log.Error(err)
 			}
 		}
@@ -195,6 +132,7 @@ func appInstancePostCreate(obj core.ApiObject) error {
 	return nil
 }
 
+// appInstancePostUpdate 自定义应用实例更新前逻辑
 func appInstancePreUpdate(obj core.ApiObject) error {
 	appInstanceRegistry := NewAppInstanceRegistry()
 
@@ -286,68 +224,7 @@ func appInstancePreUpdate(obj core.ApiObject) error {
 	return nil
 }
 
-func appInstancePostDelete(obj core.ApiObject) error {
-	hostRegistry := NewHostRegistry()
-
-	appInstance := obj.(*AppInstance)
-
-	if appInstance.Spec.Category == core.AppCategoryHostPlugin && len(appInstance.Spec.Modules) > 0 {
-		for _, hostRef := range appInstance.Spec.Modules[0].HostRefs {
-			// 获取插件关联的主机
-			hostObj, err := hostRegistry.Get(context.TODO(), core.DefaultNamespace, hostRef)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if hostObj == nil {
-				err := e.Errorf("host %s not found", hostRef)
-				log.Error(err)
-				return err
-			}
-			host := hostObj.(*Host)
-
-			for index, plugin := range host.Spec.Plugins {
-				if plugin.AppRef.Name == appInstance.Spec.AppRef.Name && plugin.AppRef.Version == appInstance.Spec.AppRef.Version {
-					host.Spec.Plugins = append(host.Spec.Plugins[:index], host.Spec.Plugins[index+1:]...)
-				}
-			}
-
-			if _, err := hostRegistry.Update(context.TODO(), host, core.WithStatus()); err != nil {
-				log.Error(err)
-				return err
-			}
-		}
-	} else if appInstance.Spec.Category == core.AppCategoryAlgorithmPlugin && len(appInstance.Spec.Modules) > 0 {
-		for _, hostRef := range appInstance.Spec.Modules[0].HostRefs {
-			// 获取插件关联的主机
-			hostObj, err := hostRegistry.Get(context.TODO(), core.DefaultNamespace, hostRef)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if hostObj == nil {
-				err := e.Errorf("host %s not found", hostRef)
-				log.Error(err)
-				return err
-			}
-			host := hostObj.(*Host)
-
-			for index, sdk := range host.Spec.Sdks {
-				if sdk.AppRef.Name == appInstance.Spec.AppRef.Name && sdk.AppRef.Version == appInstance.Spec.AppRef.Version {
-					host.Spec.Sdks = append(host.Spec.Sdks[:index], host.Spec.Sdks[index+1:]...)
-				}
-			}
-
-			if _, err := hostRegistry.Update(context.TODO(), host, core.WithStatus()); err != nil {
-				log.Error(err)
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
+// appInstanceValidate 自定义应用实例内容写入校验逻辑
 func appInstanceValidate(obj core.ApiObject) error {
 	hostRegistry := NewHostRegistry()
 	appRegistry := NewAppRegistry()
@@ -410,6 +287,7 @@ func appInstanceValidate(obj core.ApiObject) error {
 	return nil
 }
 
+// appInstanceMutate 自定义应用实例内容写入填充逻辑
 func appInstanceMutate(obj core.ApiObject) error {
 	appInstance := obj.(*AppInstance)
 
@@ -484,6 +362,7 @@ func appInstanceMutate(obj core.ApiObject) error {
 	return nil
 }
 
+// appInstanceDecorate 自定义应用实例内容读取装饰逻辑
 func appInstanceDecorate(obj core.ApiObject) error {
 	appInstance := obj.(*AppInstance)
 
@@ -555,16 +434,7 @@ func appInstanceDecorate(obj core.ApiObject) error {
 	return nil
 }
 
-func NewAppInstance() *AppInstance {
-	appInstance := new(AppInstance)
-	appInstance.Init(ApiVersion, core.KindAppInstance)
-	appInstance.Spec.LivenessProbe.InitialDelaySeconds = 10
-	appInstance.Spec.LivenessProbe.PeriodSeconds = 60
-	appInstance.Spec.LivenessProbe.TimeoutSeconds = 60
-	appInstance.Spec.Modules = []AppInstanceModule{}
-	return appInstance
-}
-
+// NewAppInstanceRegistry 实例化应用实例存储器
 func NewAppInstanceRegistry() AppInstanceRegistry {
 	r := AppInstanceRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindAppInstance), true),
@@ -579,6 +449,334 @@ func NewAppInstanceRegistry() AppInstanceRegistry {
 	r.SetDecorateHook(appInstanceDecorate)
 	r.SetPreUpdateHook(appInstancePreUpdate)
 	r.SetPostCreateHook(appInstancePostCreate)
-	r.SetPostDeleteHook(appInstancePostDelete)
+	return r
+}
+
+// AuditRegistry 审计日志存储器
+type AuditRegistry struct {
+	registry.Registry
+}
+
+// Record 记录一条新的审计日志
+func (r AuditRegistry) Record(audit *Audit) error {
+	var namespaceMsg, shortNameMsg, actionMsg, descMsg string
+
+	if audit.Spec.Msg != "" {
+		descMsg = ", 备注: " + audit.Spec.Msg
+	}
+
+	if audit.Spec.ResourceRef.Namespace != "" {
+		namespaceMsg = "在命名空间 " + audit.Spec.ResourceRef.Namespace + " 下"
+	}
+
+	if shortName := audit.Metadata.Annotations["ShortName"]; shortName != "" {
+		shortNameMsg = "(" + shortName + ")"
+	}
+
+	switch audit.Spec.Action {
+	case core.AuditActionCreate:
+		actionMsg = "创建"
+	case core.AuditActionUpdate:
+		actionMsg = "更新"
+	case core.AuditActionDelete:
+		actionMsg = "删除"
+	default:
+		return errors.New("unsupport method")
+	}
+
+	audit.Metadata.Name = fmt.Sprintf("%d", time.Now().UnixNano())
+	audit.Spec.Msg = namespaceMsg + actionMsg + core.GetKindMsg(audit.Spec.ResourceRef.Kind) + " " + audit.Spec.ResourceRef.Name + shortNameMsg + descMsg
+
+	if _, err := r.Create(context.TODO(), audit); err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
+// NewAuditRegistry 实例化审计日志存储器
+func NewAuditRegistry() AuditRegistry {
+	return AuditRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindAudit), false),
+	}
+}
+
+// +namespaced=true
+// ConfigMapRegistry 配置字典存储器
+type ConfigMapRegistry struct {
+	registry.Registry
+}
+
+// NewConfigMapRegistry 实例化配置字典存储器
+func NewConfigMapRegistry() ConfigMapRegistry {
+	r := ConfigMapRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindConfigMap), true),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRevision,
+	})
+	r.SetRevisioner(NewConfigMapRevision())
+	return r
+}
+
+// EventRegistry 事件日志存储器
+type EventRegistry struct {
+	registry.Registry
+}
+
+// Record 记录一条新的事件日志
+func (r EventRegistry) Record(event *Event) error {
+	var shortNameMsg string
+	if shortName := event.Metadata.Annotations["ShortName"]; shortName != "" {
+		shortNameMsg = "(" + shortName + ")"
+	}
+	appendMsg := event.Spec.Msg
+	phase := event.Status.Phase
+
+	event.Metadata.Name = fmt.Sprintf("%d", time.Now().UnixNano())
+	event.Spec.Msg = core.GetKindMsg(event.Spec.ResourceRef.Kind) + " " + event.Spec.ResourceRef.Name + shortNameMsg + " "
+	switch event.Status.Phase {
+	case core.PhaseCompleted:
+		event.Spec.Msg += core.GetActionMsg(event.Spec.Action) + "完成"
+	case core.PhaseFailed:
+		event.Spec.Msg += core.GetActionMsg(event.Spec.Action) + "失败"
+	default:
+		event.Status.Phase = core.PhaseWaiting
+		event.Spec.Msg += "开始" + core.GetActionMsg(event.Spec.Action)
+	}
+
+	if appendMsg != "" {
+		event.Spec.Msg += "，备注：" + appendMsg
+	}
+
+	if _, err := r.Create(context.TODO(), event); err != nil {
+		log.Error(err)
+		return err
+	}
+	if phase != core.PhaseWaiting {
+		if _, err := r.UpdateStatusPhase(event.Metadata.Namespace, event.Metadata.Name, phase); err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+	return nil
+}
+
+// NewEventRegistry 实例化事件日志存储器
+func NewEventRegistry() EventRegistry {
+	r := EventRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindEvent), false),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefJob,
+	})
+	return r
+}
+
+// GPURegistry 显卡存储器
+type GPURegistry struct {
+	registry.Registry
+}
+
+// GetGPUName 获取显卡标识名
+func (r GPURegistry) GetGPUName(hostRef string, slot int) string {
+	return fmt.Sprintf("%s-slot-%d", hostRef, slot)
+}
+
+// NewGPURegistry 实例化显卡存储器
+func NewGPURegistry() GPURegistry {
+	return GPURegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindGPU), false),
+	}
+}
+
+// HostRegistry 主机存储器
+type HostRegistry struct {
+	registry.Registry
+}
+
+// NewHostRegistry 实例化主机存储器
+func NewHostRegistry() HostRegistry {
+	r := HostRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefGPU,
+		core.FinalizerCleanRefEvent,
+	})
+	return r
+}
+
+// JobRegistry 任务存储器
+type JobRegistry struct {
+	registry.Registry
+}
+
+// GetLogPath 获取任务工作目录路径
+func (r JobRegistry) GetLogPath(jobsDir string, jobName string) (string, error) {
+	obj, err := r.Get(context.TODO(), "", jobName)
+	if err != nil {
+		return "", err
+	}
+	if obj == nil {
+		return "", nil
+	}
+	job := obj.(*Job)
+	return path.Join(jobsDir, job.Metadata.Uid, "ansible.log"), nil
+}
+
+// GetLog 获取任务的运行日志
+func (r JobRegistry) GetLog(jobsDir string, jobName string) ([]byte, error) {
+	jobPath, err := r.GetLogPath(jobsDir, jobName)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadFile(jobPath)
+}
+
+// WatchLog 监听任务运行日志的输出内容
+func (r JobRegistry) WatchLog(ctx context.Context, jobsDir string, jobName string) (<-chan string, error) {
+	jobPath, err := r.GetLogPath(jobsDir, jobName)
+	if err != nil {
+		return nil, err
+	}
+	return util.Tailf(ctx, jobPath)
+}
+
+// NewJobRegistry 实例化任务存储器
+func NewJobRegistry() JobRegistry {
+	r := JobRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindJob), false),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefConfigMap,
+		core.FinalizerCleanJobWorkDir,
+	})
+	return r
+}
+
+// +namespaced=true
+// K8sConfigRegistry K8S集群存储器
+type K8sConfigRegistry struct {
+	registry.Registry
+}
+
+func (r K8sConfigRegistry) GetFirstMasterHost(name string) (*Host, error) {
+	// 获取k8s集群节点
+	k8sObj, err := r.Get(context.TODO(), core.DefaultNamespace, name)
+	if err != nil {
+		return nil, err
+	} else if k8sObj == nil {
+		return nil, e.Errorf("k8s cluster '%s' not found", name)
+	}
+	k8s := k8sObj.(*K8sConfig)
+
+	if len(k8s.Spec.K8SMaster.Hosts) < 1 {
+		return nil, e.Errorf("k8s cluster '%s' does not have any master hosts exist", name)
+	}
+	// 获取k8s集群第一个master节点
+	hostRef := k8s.Spec.K8SMaster.Hosts[0].ValueFrom.HostRef
+	hostRegistry := NewHostRegistry()
+	hostObj, err := hostRegistry.Get(context.TODO(), "", hostRef)
+	if err != nil {
+		return nil, err
+	} else if hostObj == nil {
+		return nil, e.Errorf("host %s not found", hostRef)
+	}
+	return hostObj.(*Host), nil
+}
+
+// NewK8sConfigRegistry 实例化K8S集群存储器
+func NewK8sConfigRegistry() K8sConfigRegistry {
+	r := K8sConfigRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindK8sConfig), true),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefEvent,
+	})
+	return r
+}
+
+// NamespaceRegistry 命名空间存储器
+type NamespaceRegistry struct {
+	registry.Registry
+}
+
+// NewNamespaceRegistry 实例化命名空间存储器
+func NewNamespaceRegistry() NamespaceRegistry {
+	r := NamespaceRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindNamespace), false),
+	}
+	r.SetDefaultFinalizers([]string{
+		core.FinalizerCleanRefConfigMap,
+	})
+	return r
+}
+
+// PkgRegistry 部署包存储器
+type PkgRegistry struct {
+	registry.Registry
+}
+
+// NewPkgRegistry 实例化部署包存储器
+func NewPkgRegistry() PkgRegistry {
+	return PkgRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindPkg), false),
+	}
+}
+
+// ProjectRegistry 项目存储器
+type ProjectRegistry struct {
+	registry.Registry
+}
+
+// projectMutate 自定义项目内容写入填充逻辑
+func projectMutate(obj core.ApiObject) error {
+	project := obj.(*Project)
+
+	// 如果项目没有关联同名的命名空间，则创建并关联命名空间
+	nsExist := false
+	for _, referNs := range project.ReferNamespaces {
+		if referNs == project.Metadata.Name {
+			nsExist = true
+		}
+	}
+	if !nsExist {
+		nsRegistry := NewNamespaceRegistry()
+		nsObj, err := nsRegistry.Get(context.TODO(), "", project.Metadata.Name)
+		if err != nil {
+			return err
+		}
+		if nsObj == nil {
+			ns := NewNamespace()
+			ns.Metadata.Name = project.Metadata.Name
+			if _, err := nsRegistry.Create(context.TODO(), ns); err != nil {
+				return err
+			}
+		}
+		project.ReferNamespaces = append(project.ReferNamespaces, project.Metadata.Name)
+	}
+	return nil
+}
+
+// NewProjectRegistry 实例化项目存储器
+func NewProjectRegistry() ProjectRegistry {
+	r := ProjectRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindProject), false),
+	}
+	r.SetMutateHook(projectMutate)
+	return r
+}
+
+// RevisionRegistry 修订版本存储器
+type RevisionRegistry struct {
+	registry.Registry
+}
+
+// NewRevisionRegistry 实例化修订版本存储器
+func NewRevisionRegistry() RevisionRegistry {
+	r := RevisionRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindRevision), false),
+	}
 	return r
 }
