@@ -106,7 +106,7 @@ func init() {
 // Helper 对{{ .Package }}版本所有实体对象的操作封装
 type Helper struct {
 	{{ range .Registries }}
-	{{- .Name }}	{{ .Registry }}
+	{{- .Name }}	*{{ .Registry }}
 	{{ end }}
 }
 

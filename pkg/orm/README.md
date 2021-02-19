@@ -77,7 +77,7 @@ func Init() {
 
 存储对象和存储器中的部分方法可通过代码生成器生成
 
-对于继承了"github.com/wujie1993/waves/pkg/orm/core".BaseApiObj的实体对象实现了以下方法的自动生成
+对于继承了"github.com/wujie1993/waves/pkg/orm/core".BaseApiObj的资源对象实现了以下方法的自动生成
 
 - DeepCopy
 - DeepCopyInto
@@ -97,11 +97,11 @@ make gen
 
 > 自动生成的代码文件名以zz_generated开头
 
-### 创建存储对象
+### 资源对象的定义
 
-以创建`Host`对象实体为例：
+以创建`Host`对象资源为例：
 
-1. 在`v1/`目录中创建一个对象实体定义`host.go`
+1. 在`v1/types.go`文件中定义对象的字段结构
 
 ```golang
 package v1
@@ -115,8 +115,11 @@ import (
 	"github.com/wujie1993/waves/pkg/orm/registry"
 )
 
-// Host orm对象实体，请将自定义结构字段补充于.Spec中
+...
+
+// Host orm对象资源，请将自定义结构字段补充于.Spec中
 type Host struct {
+        // 每个资源对象都继承于基础对象
 	core.BaseApiObj `json:",inline" yaml:",inline"`
 	Spec HostSpec
 }
@@ -131,33 +134,55 @@ type HostSSH struct {
 	Passwd string
 }
 
-// SpecHash 计算当前实体对象的.spec内容哈希值，作为对象是否发生更新的判断依据
+// SpecHash 计算当前资源对象的.spec内容哈希值，作为对象是否发生更新的判断依据
 func (obj Host) SpecHash() string {
 	data, _ := json.Marshal(&obj.Spec)
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
-// HostRegistry 实现了Host对象实体的操作接口。其继承的Registry中已经实现了通用的对象操作接口，参数中的对象均采用接口类型core.ApiObject，可以通过类型推断（如：host:=obj.(*Host)）将core.ApiObject转换为Host实体对象。
-type HostRegistry struct {
-	registry.Registry
+// SpecEncode 序列化Spec字段的内容
+func (obj Host) SpecEncode() ([]byte, error) {
+	return json.Marshal(&obj.Spec.SSH)
 }
 
-// NewHost 用于实例化一个新的实体对象
+// SpecDecode 反序列化Spec字段的内容
+func (obj *Host) SpecDecode(data []byte) error {
+	return json.Unmarshal(data, &obj.Spec.SSH)
+}
+
+// NewHost 用于实例化一个新的资源对象
 func NewHost() *Host {
 	host := new(Host)
 	host.Init(ApiVersion, core.KindHost)
 	return host
 }
 
-// NewHostRegistry 用于实例化一个新的实体对象数据库操作器
-func NewHostRegistry() HostRegistry {
-	return HostRegistry{
+...
+```
+
+2. 在`v1/registries.go`中定义资源对象存储器，用于为特定的资源对象做数据库读写
+
+
+```golang
+...
+
+// HostRegistry Host资源所对应的对象存储器 
+type HostRegistry struct {
+        // 每个资源对象存储器都继承于通用存储器，其中已经实现了常用的CRUD方法
+	registry.Registry
+}
+
+
+// NewHostRegistry 用于实例化一个新的资源对象数据库操作器
+func NewHostRegistry() *HostRegistry {
+	r := &HostRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
 	}
+        return r
 }
 ```
 
-2. 在`core/common.go`中添加该结构对应的常量
+3. 在`core/common.go`中添加该结构对应的常量
 
 ```golang
 ...
@@ -165,13 +190,13 @@ const KindHost = "host"
 ...
 ```
 
-3. 执行代码生成命令
+4. 执行代码生成命令
 
 ```bash
 make gen
 ```
 
-### 使用CRUD
+### 使用资源对象存储器进行数据读写
 
 1. 初始化对象操作器
 
@@ -203,7 +228,44 @@ helper.V1.Host.GetWatch(ctx, namespace, name)
 helper.V1.Host.ListWatch(ctx, namespace)
 ```
 
-> 以上方法返回的实体对象均为core.ApiObject接口，需要获取其中的内容需要做类型推断,如：host:=obj.(*v1.Host)
+> 以上方法返回的资源对象均为core.ApiObject接口，需要获取其中的内容需要做类型推断,如：host:=obj.(*v1.Host)
 
-具体用例请参照`v1/host_test.go`
+### 通过钩子方法在数据读写过程中注入自定义逻辑
 
+在资源对象读写的过程中，我们往往需要加入一些自定义的逻辑，例如：字段校验，字段填充和外部探针等。在通用资源对象存储器中实现了钩子方法的注入，可以在数据读写的各个阶段中注入自定义的逻辑。目前支持以下的钩子方法：
+
+- ValidateHook 字段校验钩子，在Create和Update前执行
+- MutateHook 字段填充钩子，在Create和Update前执行
+- PreCreateHook 创建前置钩子，在Create前执行
+- PreUpdateHook 更新前置钩子，在Update前执行
+- PreDeleteHook 删除前置钩子，在Delete前执行
+- PostCreateHook 创建后置钩子，在Create后执行
+- PostUpdateHook 更新后置钩子，在Update后执行
+- PostDeleteHook 删除后置钩子，在Delete后执行
+
+所有的钩子方法都使用`type HookFunc func(obj core.ApiObject) error`结构定义，通过SetXXXHook方法注入到存储器中，其中传入参数`obj core.ApiObject`为要发生数据读写的资源对象，通过类型推断后（如：`host := obj.(*v1.Host)`）方可使用，返回参数为`error`，当需要中断整个读写过程时，需要返回非nil值。示例如下：
+
+在`v1/registries.go`中，为Host资源添加自定义字段校验逻辑
+
+```
+...
+
+func hostValidate(obj core.ApiObject) error {
+        host := obj.(*v1.Host)
+        if len(host.Spec.SSH.Password) <= 6 {
+                return e.Errorf("密码长度应该超过 7 位")
+        }
+        return nil
+}
+
+func NewHostRegistry() *HostRegistry {
+	r := &HostRegistry{
+		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
+	}
+        // 注册字段校验钩子
+        r.SetValidateHook(hostValidate)
+        return r
+}
+
+...
+```

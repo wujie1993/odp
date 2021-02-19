@@ -19,9 +19,9 @@ func init() {
 
 // Helper 对v2版本所有实体对象的操作封装
 type Helper struct {
-	AppInstance AppInstanceRegistry
-	Host        HostRegistry
-	Job         JobRegistry
+	AppInstance *AppInstanceRegistry
+	Host        *HostRegistry
+	Job         *JobRegistry
 }
 
 func GetHelper() Helper {

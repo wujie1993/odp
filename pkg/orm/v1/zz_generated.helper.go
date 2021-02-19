@@ -29,19 +29,19 @@ func init() {
 
 // Helper 对v1版本所有实体对象的操作封装
 type Helper struct {
-	App         AppRegistry
-	AppInstance AppInstanceRegistry
-	Audit       AuditRegistry
-	ConfigMap   ConfigMapRegistry
-	Event       EventRegistry
-	GPU         GPURegistry
-	Host        HostRegistry
-	Job         JobRegistry
-	K8sConfig   K8sConfigRegistry
-	Namespace   NamespaceRegistry
-	Pkg         PkgRegistry
-	Project     ProjectRegistry
-	Revision    RevisionRegistry
+	App         *AppRegistry
+	AppInstance *AppInstanceRegistry
+	Audit       *AuditRegistry
+	ConfigMap   *ConfigMapRegistry
+	Event       *EventRegistry
+	GPU         *GPURegistry
+	Host        *HostRegistry
+	Job         *JobRegistry
+	K8sConfig   *K8sConfigRegistry
+	Namespace   *NamespaceRegistry
+	Pkg         *PkgRegistry
+	Project     *ProjectRegistry
+	Revision    *RevisionRegistry
 }
 
 func GetHelper() Helper {

@@ -45,8 +45,8 @@ func appMutate(obj core.ApiObject) error {
 }
 
 // NewAppRegistry 实例化应用存储器
-func NewAppRegistry() AppRegistry {
-	app := AppRegistry{
+func NewAppRegistry() *AppRegistry {
+	app := &AppRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindApp), true),
 	}
 	app.SetDefaultFinalizers([]string{
@@ -56,8 +56,8 @@ func NewAppRegistry() AppRegistry {
 	return app
 }
 
-// +namespaced=true
 // AppInstanceRegistry 应用实例存储器
+// +namespaced=true
 type AppInstanceRegistry struct {
 	registry.Registry
 }
@@ -435,8 +435,8 @@ func appInstanceDecorate(obj core.ApiObject) error {
 }
 
 // NewAppInstanceRegistry 实例化应用实例存储器
-func NewAppInstanceRegistry() AppInstanceRegistry {
-	r := AppInstanceRegistry{
+func NewAppInstanceRegistry() *AppInstanceRegistry {
+	r := &AppInstanceRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindAppInstance), true),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -495,21 +495,21 @@ func (r AuditRegistry) Record(audit *Audit) error {
 }
 
 // NewAuditRegistry 实例化审计日志存储器
-func NewAuditRegistry() AuditRegistry {
-	return AuditRegistry{
+func NewAuditRegistry() *AuditRegistry {
+	return &AuditRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindAudit), false),
 	}
 }
 
-// +namespaced=true
 // ConfigMapRegistry 配置字典存储器
+// +namespaced=true
 type ConfigMapRegistry struct {
 	registry.Registry
 }
 
 // NewConfigMapRegistry 实例化配置字典存储器
-func NewConfigMapRegistry() ConfigMapRegistry {
-	r := ConfigMapRegistry{
+func NewConfigMapRegistry() *ConfigMapRegistry {
+	r := &ConfigMapRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindConfigMap), true),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -563,8 +563,8 @@ func (r EventRegistry) Record(event *Event) error {
 }
 
 // NewEventRegistry 实例化事件日志存储器
-func NewEventRegistry() EventRegistry {
-	r := EventRegistry{
+func NewEventRegistry() *EventRegistry {
+	r := &EventRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindEvent), false),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -584,8 +584,8 @@ func (r GPURegistry) GetGPUName(hostRef string, slot int) string {
 }
 
 // NewGPURegistry 实例化显卡存储器
-func NewGPURegistry() GPURegistry {
-	return GPURegistry{
+func NewGPURegistry() *GPURegistry {
+	return &GPURegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindGPU), false),
 	}
 }
@@ -596,8 +596,8 @@ type HostRegistry struct {
 }
 
 // NewHostRegistry 实例化主机存储器
-func NewHostRegistry() HostRegistry {
-	r := HostRegistry{
+func NewHostRegistry() *HostRegistry {
+	r := &HostRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -644,8 +644,8 @@ func (r JobRegistry) WatchLog(ctx context.Context, jobsDir string, jobName strin
 }
 
 // NewJobRegistry 实例化任务存储器
-func NewJobRegistry() JobRegistry {
-	r := JobRegistry{
+func NewJobRegistry() *JobRegistry {
+	r := &JobRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindJob), false),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -655,8 +655,8 @@ func NewJobRegistry() JobRegistry {
 	return r
 }
 
-// +namespaced=true
 // K8sConfigRegistry K8S集群存储器
+// +namespaced=true
 type K8sConfigRegistry struct {
 	registry.Registry
 }
@@ -687,8 +687,8 @@ func (r K8sConfigRegistry) GetFirstMasterHost(name string) (*Host, error) {
 }
 
 // NewK8sConfigRegistry 实例化K8S集群存储器
-func NewK8sConfigRegistry() K8sConfigRegistry {
-	r := K8sConfigRegistry{
+func NewK8sConfigRegistry() *K8sConfigRegistry {
+	r := &K8sConfigRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindK8sConfig), true),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -703,8 +703,8 @@ type NamespaceRegistry struct {
 }
 
 // NewNamespaceRegistry 实例化命名空间存储器
-func NewNamespaceRegistry() NamespaceRegistry {
-	r := NamespaceRegistry{
+func NewNamespaceRegistry() *NamespaceRegistry {
+	r := &NamespaceRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindNamespace), false),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -719,8 +719,8 @@ type PkgRegistry struct {
 }
 
 // NewPkgRegistry 实例化部署包存储器
-func NewPkgRegistry() PkgRegistry {
-	return PkgRegistry{
+func NewPkgRegistry() *PkgRegistry {
+	return &PkgRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindPkg), false),
 	}
 }
@@ -760,8 +760,8 @@ func projectMutate(obj core.ApiObject) error {
 }
 
 // NewProjectRegistry 实例化项目存储器
-func NewProjectRegistry() ProjectRegistry {
-	r := ProjectRegistry{
+func NewProjectRegistry() *ProjectRegistry {
+	r := &ProjectRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindProject), false),
 	}
 	r.SetMutateHook(projectMutate)
@@ -774,8 +774,8 @@ type RevisionRegistry struct {
 }
 
 // NewRevisionRegistry 实例化修订版本存储器
-func NewRevisionRegistry() RevisionRegistry {
-	r := RevisionRegistry{
+func NewRevisionRegistry() *RevisionRegistry {
+	r := &RevisionRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindRevision), false),
 	}
 	return r

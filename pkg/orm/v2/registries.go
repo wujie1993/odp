@@ -16,8 +16,8 @@ import (
 	"github.com/wujie1993/waves/pkg/util"
 )
 
-// +namespaced=true
 // AppInstanceRegistry 应用实例存储器
+// +namespaced=true
 type AppInstanceRegistry struct {
 	registry.Registry
 }
@@ -390,8 +390,8 @@ func appInstanceDecorate(obj core.ApiObject) error {
 }
 
 // NewAppInstanceRegistry 实例化应用实例存储器
-func NewAppInstanceRegistry() AppInstanceRegistry {
-	r := AppInstanceRegistry{
+func NewAppInstanceRegistry() *AppInstanceRegistry {
+	r := &AppInstanceRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindAppInstance), true),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -416,8 +416,8 @@ type HostRegistry struct {
 }
 
 // NewHostRegistry 实例化主机存储器
-func NewHostRegistry() HostRegistry {
-	r := HostRegistry{
+func NewHostRegistry() *HostRegistry {
+	r := &HostRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindHost), false),
 	}
 	r.SetDefaultFinalizers([]string{
@@ -464,8 +464,8 @@ func (r JobRegistry) WatchLog(ctx context.Context, jobsDir string, jobName strin
 }
 
 // NewJobRegistry 实例化任务存储器
-func NewJobRegistry() JobRegistry {
-	r := JobRegistry{
+func NewJobRegistry() *JobRegistry {
+	r := &JobRegistry{
 		Registry: registry.NewRegistry(newGVK(core.KindJob), false),
 	}
 	r.SetDefaultFinalizers([]string{
